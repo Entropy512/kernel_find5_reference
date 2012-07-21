@@ -2688,6 +2688,7 @@ static struct rcg_clk csi0_src_clk = {
 		.ops = &clk_ops_rcg,
 		VDD_DIG_FMAX_MAP2(LOW, 86000000, NOMINAL, 178000000),
 		CLK_INIT(csi0_src_clk.c),
+		.warned = true,
 	},
 };
 
@@ -2705,6 +2706,7 @@ static struct branch_clk csi0_clk = {
 		.dbg_name = "csi0_clk",
 		.ops = &clk_ops_branch,
 		CLK_INIT(csi0_clk.c),
+		.warned = true,
 	},
 };
 
@@ -2744,6 +2746,7 @@ static struct rcg_clk csi1_src_clk = {
 		.ops = &clk_ops_rcg,
 		VDD_DIG_FMAX_MAP2(LOW, 86000000, NOMINAL, 178000000),
 		CLK_INIT(csi1_src_clk.c),
+		.warned = true,
 	},
 };
 
@@ -2761,6 +2764,7 @@ static struct branch_clk csi1_clk = {
 		.dbg_name = "csi1_clk",
 		.ops = &clk_ops_branch,
 		CLK_INIT(csi1_clk.c),
+		.warned = true,
 	},
 };
 
@@ -2800,6 +2804,7 @@ static struct rcg_clk csi2_src_clk = {
 		.ops = &clk_ops_rcg,
 		VDD_DIG_FMAX_MAP2(LOW, 86000000, NOMINAL, 178000000),
 		CLK_INIT(csi2_src_clk.c),
+		.warned = true,
 	},
 };
 
@@ -2817,6 +2822,7 @@ static struct branch_clk csi2_clk = {
 		.dbg_name = "csi2_clk",
 		.ops = &clk_ops_branch,
 		CLK_INIT(csi2_clk.c),
+		.warned = true,
 	},
 };
 
