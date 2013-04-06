@@ -86,3 +86,9 @@ obj-$(CONFIG_TOUCHSCREEN_FT5X06)	+= ft5x06_ts.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4)		+= synaptics_i2c_rmi4.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_RMI4_DEV)	+= synaptics_rmi_dev.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE) 	+= synaptics_fw_update.o
+obj-$(CONFIG_TOUCHSCREEN_MELFAS) += melfas_ts.o
+obj-$(CONFIG_TOUCHSCREEN_MELFAS) += mms100_ISC_download.o
+obj-$(CONFIG_TOUCHSCREEN_ELAN_KTF2K) += ektf2k.o
+obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_S3202_I2C_RMI) += synaptics_s3202_i2c_rmi.o
+obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_S3202_I2C_RMI) += synaptics_update_firmware.o
+
