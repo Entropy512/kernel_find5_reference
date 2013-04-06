@@ -590,6 +590,11 @@ ksb_usb_probe(struct usb_interface *ifc, const struct usb_device_id *id)
 	ksb->fs_dev = (struct miscdevice *)id->driver_info;
 	misc_register(ksb->fs_dev);
 
+//#ifdef VENDOR_EDIT
+//yubin@OnlineRD.AirService.Modem  2013/03/08, Modify for can't incoming call
+	ifc->needs_remote_wakeup = 1;
+//#endif /* VENDOR_EDIT */
+
 	usb_enable_autosuspend(ksb->udev);
 
 	pr_debug("usb dev connected");
@@ -603,7 +608,7 @@ static int ksb_usb_suspend(struct usb_interface *ifc, pm_message_t message)
 
 	dbg_log_event(ksb, "SUSPEND", 0, 0);
 
-	pr_info("read cnt: %d", ksb->alloced_read_pkts);
+//	pr_info("read cnt: %d", ksb->alloced_read_pkts);
 
 	usb_kill_anchored_urbs(&ksb->submitted);
 
@@ -652,6 +657,12 @@ static void ksb_usb_disconnect(struct usb_interface *ifc)
 	spin_unlock_irqrestore(&ksb->lock, flags);
 
 	misc_deregister(ksb->fs_dev);
+
+//#ifdef VENDOR_EDIT
+//yubin@OnlineRD.AirService.Modem  2013/03/08, Modify for can't incoming call
+	ifc->needs_remote_wakeup = 0;
+//#endif /* VENDOR_EDIT */
+
 	usb_put_dev(ksb->udev);
 	ksb->ifc = NULL;
 	usb_set_intfdata(ifc, NULL);
