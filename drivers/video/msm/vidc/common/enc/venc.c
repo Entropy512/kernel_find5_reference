@@ -461,6 +461,41 @@ static int vid_enc_get_next_msg(struct video_client_ctx *client_ctx,
 	mutex_unlock(&client_ctx->msg_queue_lock);
 	return 0;
 }
+/*OPPO**/
+static long _venc_free_recon_buffers(struct video_client_ctx *client_ctx)
+{
+	u32 vcd_status = VCD_ERR_FAIL;
+	struct vcd_property_hdr vcd_property_hdr;
+	int i;
+
+	if (vcd_get_ion_status()) {
+		for (i = 0; i < 4; i++) {
+			vcd_property_hdr.prop_id = VCD_I_FREE_RECON_BUFFERS;
+			vcd_property_hdr.sz =
+				sizeof(struct vcd_property_buffer_size);
+			vcd_status = vcd_set_property(client_ctx->vcd_handle,
+			&vcd_property_hdr, &client_ctx->recon_buffer[i]);
+			if (vcd_status)
+				DBG("Failed to free recon buffer\n");
+			
+			if (!IS_ERR_OR_NULL(
+				client_ctx->recon_buffer_ion_handle[i])) {
+				if (!res_trk_check_for_sec_session()) {
+					ion_unmap_iommu(
+					client_ctx->user_ion_client,
+					client_ctx->recon_buffer_ion_handle[i],
+					VIDEO_DOMAIN, VIDEO_MAIN_POOL);
+				}
+				ion_unmap_kernel(client_ctx->user_ion_client,
+					client_ctx->recon_buffer_ion_handle[i]);
+				ion_free(client_ctx->user_ion_client,
+					client_ctx->recon_buffer_ion_handle[i]);
+				client_ctx->recon_buffer_ion_handle[i] = NULL;
+			}
+		}
+	}
+	return true;
+}
 
 static u32 vid_enc_close_client(struct video_client_ctx *client_ctx)
 {
@@ -481,7 +516,7 @@ static u32 vid_enc_close_client(struct video_client_ctx *client_ctx)
 		DBG("Waiting for VCD_STOP: Before Timeout\n");
 		if (!vcd_status) {
 			rc = wait_for_completion_timeout(&client_ctx->event,
-				5 * HZ);
+				3 * HZ);
 			if (!rc) {
 				ERR("%s:ERROR vcd_stop time out"
 				"rc = %d\n", __func__, rc);
@@ -595,6 +630,9 @@ static int vid_enc_release(struct inode *inode, struct file *file)
 {
 	struct video_client_ctx *client_ctx = file->private_data;
 	INFO("\n msm_vidc_enc: Inside %s()", __func__);
+	_venc_free_recon_buffers(client_ctx);/*OPPO*/
+	vidc_cleanup_addr_table(client_ctx, BUFFER_TYPE_OUTPUT);/*OPPO*/
+	vidc_cleanup_addr_table(client_ctx, BUFFER_TYPE_INPUT);/*OPPO*/
 	vid_enc_close_client(client_ctx);
 	vidc_release_firmware();
 #ifndef USE_RES_TRACKER
