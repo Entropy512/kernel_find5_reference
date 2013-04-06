@@ -317,7 +317,10 @@ EXPORT_SYMBOL_GPL(emergency_restart);
 void kernel_restart_prepare(char *cmd)
 {
 	blocking_notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
-	system_state = SYSTEM_RESTART;
+/* OPPO 2003-02-20 Van modify begin for system power off*/
+	if(system_state != SYSTEM_POWER_OFF)
+		system_state = SYSTEM_RESTART;
+/* OPPO 2003-02-20 Van modify end for system power off*/
 	usermodehelper_disable();
 	device_shutdown();
 	syscore_shutdown();
