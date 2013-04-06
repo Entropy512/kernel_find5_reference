@@ -38,11 +38,21 @@
 #include <mach/clk.h>
 #include "mdp.h"
 #include "msm_fb.h"
+/* OPPO 2012-12-26 zhengzk Add begin for fix mdp underrun */
+#define FORBID_POWER_COLLAPSE
+/* OPPO 2012-12-26 zhengzk Add end */
 #ifdef CONFIG_FB_MSM_MDP40
 #include "mdp4.h"
 #endif
 #include "mipi_dsi.h"
 
+/* OPPO 2012-12-26 zhengzk Add begin for reason */
+#ifdef FORBID_POWER_COLLAPSE
+#include <linux/pm_qos.h>
+#define MDP_LATENCY	1300
+struct pm_qos_request mdp_pm_qos_req_dma;
+#endif
+/* OPPO 2012-12-26 zhengzk Add end */
 uint32 mdp4_extn_disp;
 
 static struct clk *mdp_clk;
@@ -2061,6 +2071,28 @@ static void mdp_drv_init(void)
 #endif
 }
 
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
+#ifdef CONFIG_VENDOR_EDIT	
+
+#ifdef SPLASH_SCREEN_BUFFER_FOR_1080P
+struct disp_logo_buffer {
+	dma_addr_t phys;
+	void       *data;
+	uint32_t   used;
+	uint32_t   size;/* size of buffer */
+	struct ion_handle *handle;
+	struct ion_client *client;
+};
+
+struct disp_logo_buffer logo_buffer;
+
+static void free_boot_logo_copy_buffer(void);
+static int alloc_boot_logo_copy_buffer(unsigned int bufsz);
+#endif
+
+#endif
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
+
 static int mdp_probe(struct platform_device *pdev);
 static int mdp_remove(struct platform_device *pdev);
 
@@ -2386,6 +2418,92 @@ static int mdp_irq_clk_setup(struct platform_device *pdev,
 	return 0;
 }
 
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
+#ifdef CONFIG_VENDOR_EDIT	
+
+#ifdef SPLASH_SCREEN_BUFFER_FOR_1080P
+static void free_boot_logo_copy_buffer(void)
+{
+	pr_debug("%s++\n", __func__);
+
+	if (logo_buffer.data) {
+		logo_buffer.used = 0;
+		ion_unmap_kernel(logo_buffer.client, logo_buffer.handle);
+		ion_free(logo_buffer.client, logo_buffer.handle);
+		ion_client_destroy(logo_buffer.client);
+		pr_debug("%s:data[%p]phys[%p][%p], client[%p] handle[%p]\n",
+			__func__,
+			(void *)logo_buffer.data,
+			(void *)logo_buffer.phys,
+			(void *)&logo_buffer.phys,
+			(void *)logo_buffer.client,
+			(void *)logo_buffer.handle);
+	}
+
+		logo_buffer.data = NULL;
+		logo_buffer.phys = 0;
+	pr_debug("%s--\n", __func__);
+	return;
+}
+
+
+static int alloc_boot_logo_copy_buffer(unsigned int bufsz)
+{
+	int rc = 0;
+	int len = 0;
+
+	pr_debug("alloc_boot_logo_copy_buffer++\n");
+	logo_buffer.client =
+		 msm_ion_client_create(UINT_MAX, "boot_logo_copy_client");
+	if (IS_ERR_OR_NULL((void *)logo_buffer.client)) {
+		pr_err("%s: ION create client for boot_logo_copy failed\n",
+			 __func__);
+		goto fail;
+	}
+	logo_buffer.handle = ion_alloc(logo_buffer.client, bufsz * 1, SZ_4K,
+				  ION_HEAP(ION_QSECOM_HEAP_ID));
+	if (IS_ERR_OR_NULL((void *) logo_buffer.handle)) {
+		pr_err("%s: ION memory allocation for boot_logo_copy failed\n",
+			__func__);
+		goto fail;
+	}
+
+	rc = ion_phys(logo_buffer.client, logo_buffer.handle,
+		  (ion_phys_addr_t *)&logo_buffer.phys, (size_t *)&len);
+	if (rc) {
+		pr_err("%s: ION Get Phys for boot_logo_copy failed, rc = %d\n",
+			__func__, rc);
+		goto fail;
+	}
+
+	logo_buffer.data = ion_map_kernel(logo_buffer.client,
+				 logo_buffer.handle, 0);
+	if (IS_ERR_OR_NULL((void *) logo_buffer.data)) {
+		pr_err("%s: ION memory mapping for boot_logo_copy failed\n",
+				 __func__);
+		goto fail;
+	}
+	memset((void *)logo_buffer.data, 0, (bufsz * 1));
+	if (!logo_buffer.data) {
+		pr_err("%s:invalid vaddr, iomap failed\n", __func__);
+		goto fail;
+	}
+
+	logo_buffer.used = 1;
+
+	pr_debug("alloc_boot_logo_copy_buffer--\n");
+
+	return 0;
+fail:
+	free_boot_logo_copy_buffer();
+	return -EINVAL;
+}
+#endif
+
+
+#endif
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
+
 static int mdp_probe(struct platform_device *pdev)
 {
 	struct platform_device *msm_fb_dev = NULL;
@@ -2401,6 +2519,11 @@ static int mdp_probe(struct platform_device *pdev)
 	struct mipi_panel_info *mipi;
 #endif
 	static int contSplash_update_done;
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
+#ifdef CONFIG_VENDOR_EDIT	
+	char *cp;
+#endif
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
 
 	if ((pdev->id == 0) && (pdev->num_resources > 0)) {
 		mdp_init_pdev = pdev;
@@ -2422,6 +2545,15 @@ static int mdp_probe(struct platform_device *pdev)
 		}
 
 		mdp_rev = mdp_pdata->mdp_rev;
+/* OPPO 2012-12-26 zhengzk Add begin for reason */
+#ifdef FORBID_POWER_COLLAPSE
+		pm_qos_add_request(&mdp_pm_qos_req_dma,
+				PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
+		pm_qos_update_request(&mdp_pm_qos_req_dma,
+				MDP_LATENCY + 1);
+		printk ("%s: pm_qos_update_request", __func__);
+#endif
+/* OPPO 2012-12-26 zhengzk Add end */
 		mdp_iommu_split_domain = mdp_pdata->mdp_iommu_split_domain;
 
 		rc = mdp_irq_clk_setup(pdev, mdp_pdata->cont_splash_enabled);
@@ -2432,6 +2564,11 @@ static int mdp_probe(struct platform_device *pdev)
 		mdp_clk_ctrl(1);
 
 		mdp_hw_version();
+/* OPPO 2012-12-4 huyu modify for solving wifidisplay crash*/
+#ifdef CONFIG_VENDOR_EDIT		
+		mdp4_overlay_cfg_init(); 
+#endif
+/* OPPO 2012-12-4 huyu modify for solving wifidisplay crash*/
 
 		/* initializing mdp hw */
 #ifdef CONFIG_FB_MSM_MDP40
@@ -2444,8 +2581,14 @@ static int mdp_probe(struct platform_device *pdev)
 #ifdef CONFIG_FB_MSM_OVERLAY
 		mdp_hw_cursor_init();
 #endif
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
+#ifndef CONFIG_VENDOR_EDIT
 		mdp_clk_ctrl(0);
-
+#else
+		if (!(mdp_pdata->cont_splash_enabled))
+			mdp_clk_ctrl(0);
+#endif
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
 		mdp_resource_initialized = 1;
 		return 0;
 	}
@@ -2476,6 +2619,60 @@ static int mdp_probe(struct platform_device *pdev)
 		if (mdp_pdata->cont_splash_enabled) {
 			mfd->cont_splash_done = 0;
 			if (!contSplash_update_done) {
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
+#ifdef CONFIG_VENDOR_EDIT	
+                uint32 bpp = 3;
+				/*read panel wxh and calculate splash screen size*/
+				mdp_pdata->splash_screen_size =
+				inpdw(MDP_BASE + 0x90004);
+				mdp_pdata->splash_screen_size =
+					(((mdp_pdata->splash_screen_size >> 16) &
+					0x00000FFF) * (
+					mdp_pdata->splash_screen_size &
+					0x00000FFF)) * bpp;
+				mdp_pdata->splash_screen_addr =
+					inpdw(MDP_BASE + 0x90008);
+#ifdef SPLASH_SCREEN_BUFFER_FOR_1080P
+					if (alloc_boot_logo_copy_buffer
+							(mdp_pdata->splash_screen_size))
+						pr_err("BUFFER ALLOC FAILED for SPLASH\n");
+					else
+						pr_debug("BUFFER ALLOC Sucessfully done for SPLASH\n");
+	
+					if (logo_buffer.used == 1) {
+						mfd->copy_splash_phys =
+								 logo_buffer.phys;
+						mfd->copy_splash_buf =
+								logo_buffer.data;
+					}
+				
+#else
+
+				mfd->copy_splash_buf = dma_alloc_coherent(NULL,
+					mdp_pdata->splash_screen_size,
+					(dma_addr_t *) &(mfd->copy_splash_phys),
+					GFP_KERNEL);
+#endif
+
+				if (!mfd->copy_splash_buf) {
+					pr_err("DMA ALLOC FAILED for SPLASH\n");
+					return -ENOMEM;
+					}
+					cp = (char *)ioremap(
+						mdp_pdata->splash_screen_addr,
+						mdp_pdata->splash_screen_size);
+					if (!cp) {
+						pr_err("IOREMAP FAILED for SPLASH\n");
+						return -ENOMEM;
+						}
+						memcpy(mfd->copy_splash_buf, cp,
+							mdp_pdata->splash_screen_size);
+						MDP_OUTP(MDP_BASE + 0x90008,
+							mfd->copy_splash_phys);	
+
+#endif					
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
+
 				if (mfd->panel.type == MIPI_VIDEO_PANEL)
 					mdp_pipe_ctrl(MDP_CMD_BLOCK,
 						MDP_BLOCK_POWER_ON, FALSE);
@@ -2882,6 +3079,27 @@ void mdp_footswitch_ctrl(boolean on)
 	mutex_unlock(&mdp_suspend_mutex);
 }
 
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
+#ifdef CONFIG_VENDOR_EDIT	
+void mdp_free_splash_buffer(struct msm_fb_data_type *mfd)
+{
+if (mfd->copy_splash_buf) {
+	
+#ifdef SPLASH_SCREEN_BUFFER_FOR_1080P
+			free_boot_logo_copy_buffer();
+#else
+		dma_free_coherent(NULL, mdp_pdata->splash_screen_size,
+			mfd->copy_splash_buf,
+			(dma_addr_t) mfd->copy_splash_phys);
+#endif
+
+	mfd->copy_splash_buf = NULL;
+		}
+}
+
+#endif
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
+
 #ifdef CONFIG_PM
 static void mdp_suspend_sub(void)
 {
@@ -2955,6 +3173,13 @@ static int mdp_remove(struct platform_device *pdev)
 		mdp_bus_scale_handle > 0)
 		msm_bus_scale_unregister_client(mdp_bus_scale_handle);
 #endif
+/* OPPO 2012-12-26 zhengzk Add begin for reason */
+#ifdef FORBID_POWER_COLLAPSE
+	pm_qos_update_request(&mdp_pm_qos_req_dma,
+			PM_QOS_DEFAULT_VALUE);
+	printk ("%s: pm_qos_update_request", __func__);
+#endif
+/* OPPO 2012-12-26 zhengzk Add end */
 	return 0;
 }
 

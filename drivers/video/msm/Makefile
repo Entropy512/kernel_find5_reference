@@ -78,7 +78,8 @@ obj-$(CONFIG_FB_MSM_MIPI_DSI) += msm_mipi.o
 # MIPI manufacture
 obj-$(CONFIG_FB_MSM_MIPI_DSI_TOSHIBA) += mipi_toshiba.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_NOVATEK) += mipi_novatek.o
-obj-$(CONFIG_FB_MSM_MIPI_DSI_ORISE) += mipi_orise.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_ORISE) += mipi_orise_720p.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_ORISE) += mipi_orise_1080p.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_RENESAS) += mipi_renesas.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_TRULY) += mipi_truly.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_NT35510) += mipi_NT35510.o
@@ -194,5 +195,10 @@ endif
 
 obj-$(CONFIG_MSM_VIDC_1080P) += vidc/
 obj-$(CONFIG_MSM_VIDC_720P) += vidc/
+
+# OPPO 2012-08-10 zhengzk added begin for lm3528
+obj-$(CONFIG_FB_MSM_MIPI_BACKLIGHT_LM3528) += lm3528.o
+# OPPO 2012-08-10 zhengzk added end
+
 clean:
 	rm *.o .*cmd

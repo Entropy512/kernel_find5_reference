@@ -43,8 +43,16 @@ static boolean tlmm_settings = FALSE;
 static int mipi_dsi_probe(struct platform_device *pdev);
 static int mipi_dsi_remove(struct platform_device *pdev);
 
+/* OPPO 2012-11-27 huyu remove static for lcd restart */ 
+#ifndef CONFIG_VENDOR_EDIT
 static int mipi_dsi_off(struct platform_device *pdev);
 static int mipi_dsi_on(struct platform_device *pdev);
+#else
+int mipi_dsi_off(struct platform_device *pdev);
+int mipi_dsi_on(struct platform_device *pdev);
+#endif
+
+/* OPPO 2012-11-27 huyu remove static for lcd restart */ 
 
 static struct platform_device *pdev_list[MSM_FB_MAX_DEV_LIST];
 static int pdev_list_cnt;
@@ -62,8 +70,14 @@ static struct platform_driver mipi_dsi_driver = {
 };
 
 struct device dsi_dev;
-
+/* OPPO 2012-11-27 huyu remove static for lcd restart */ 
+#ifndef CONFIG_VENDOR_EDIT
 static int mipi_dsi_off(struct platform_device *pdev)
+#else
+int mipi_dsi_off(struct platform_device *pdev)
+#endif
+/* OPPO 2012-11-27 huyu remove static for lcd restart */ 
+
 {
 	int ret = 0;
 	struct msm_fb_data_type *mfd;
@@ -137,7 +151,13 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	return ret;
 }
 
+/* OPPO 2012-11-27 huyu remove static for lcd restart */  
+#ifndef CONFIG_VENDOR_EDIT
 static int mipi_dsi_on(struct platform_device *pdev)
+#else
+int mipi_dsi_on(struct platform_device *pdev)
+#endif
+/* OPPO 2012-11-27 huyu remove static for lcd restart */ 
 {
 	int ret = 0;
 	u32 clk_rate;
@@ -336,6 +356,11 @@ static int mipi_dsi_on(struct platform_device *pdev)
 
 
 static int mipi_dsi_resource_initialized;
+/* OPPO 2012-11-27 huyu Add for lcd restart */  
+#ifdef CONFIG_VENDOR_EDIT
+struct platform_device *g_mdp_dev = NULL;
+#endif
+/* OPPO 2012-11-27 huyu Add for lcd restart */  
 
 static int mipi_dsi_probe(struct platform_device *pdev)
 {
@@ -459,6 +484,11 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	mdp_dev = platform_device_alloc("mdp", pdev->id);
 	if (!mdp_dev)
 		return -ENOMEM;
+/* OPPO 2012-11-27 huyu Add for lcd restart */  
+#ifdef CONFIG_VENDOR_EDIT
+	g_mdp_dev = mdp_dev;
+#endif
+/* OPPO 2012-11-27 huyu Add for lcd restart */  
 
 	/*
 	 * link to the latest pdev
@@ -571,8 +601,15 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	if (rc)
 		goto mipi_dsi_probe_err;
 
+/* OPPO 2012-12-03 zhengzk Modify begin for increase range of pclk */
+#ifndef CONFIG_VENDOR_EDIT
 	if ((dsi_pclk_rate < 3300000) || (dsi_pclk_rate > 103300000))
 		dsi_pclk_rate = 35000000;
+#else
+	if ((dsi_pclk_rate < 3300000) || (dsi_pclk_rate > 223000000))
+		dsi_pclk_rate = 35000000;
+#endif
+/* OPPO 2012-12-03 zhengzk Modify end */
 	mipi->dsi_pclk_rate = dsi_pclk_rate;
 
 	/*

@@ -956,6 +956,14 @@ config FB_MSM_EBI2_PANEL_DETECT
 	---help---
 	  Support for EBI2 panel auto detect
 
+config FB_MSM_MIPI_BACKLIGHT_LM3528
+	bool "lcd backlight lm3528 driver"
+	depends on I2C
+	---help---
+	  Enable support for LED flash for msm camera.
+	  It is a Texas Instruments multiple LED Flash
+	  for camera flash and video light applications.
+	  
 if FB_MSM_MDSS
 	source "drivers/video/msm/mdss/Kconfig"
 endif

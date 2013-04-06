@@ -1,4 +1,3 @@
-#ifndef CONFIG_1080P_LCD
 //720p lcd driver
 
 /* Copyright (c) 2012, Code Aurora Forum. All rights reserved.
@@ -262,6 +261,7 @@ static void mipi_init_cmd(struct msm_fb_data_type *mfd)
 #endif
 }
 
+extern int get_pcb_version(void);
 static int __devinit mipi_orise_lcd_probe(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
@@ -269,323 +269,7 @@ static int __devinit mipi_orise_lcd_probe(struct platform_device *pdev)
 	struct platform_device *current_pdev;
 	static struct mipi_dsi_phy_ctrl *phy_settings;
 	int rc = 0;
-	if (pdev->id == 0) {
-		mipi_orise_pdata = pdev->dev.platform_data;
-
-		if (mipi_orise_pdata
-			&& mipi_orise_pdata->phy_ctrl_settings) {
-			phy_settings = (mipi_orise_pdata->phy_ctrl_settings);
-		}
-		return 0;
-	}
-
-	current_pdev = msm_fb_add_device(pdev);
-
-	if (current_pdev) {
-		mfd = platform_get_drvdata(current_pdev);
-		if (!mfd)
-			return -ENODEV;
-		if (mfd->key != MFD_KEY)
-			return -EINVAL;
-
-		mipi  = &mfd->panel_info.mipi;
-
-		if (phy_settings != NULL)
-			mipi->dsi_phy_db = phy_settings;
-	}
-
-	rc = gpio_request(MIPI_STOD13_EN, "MIPI_STOD13_EN#");
-	if (rc < 0) {
-		pr_err("MIPI GPIO STOD13_EN request failed: %d\n", rc);
-		return -ENODEV;
-	}
-	rc = gpio_direction_output(MIPI_STOD13_EN, 0);
-	if (rc < 0) {
-		pr_err("MIPI GPIO STOD13_EN set failed: %d\n", rc);
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static struct platform_driver this_driver = {
-	.probe = mipi_orise_lcd_probe,
-	.driver = {
-		.name = "mipi_orise",
-	},
-};
-
-static struct msm_fb_panel_data orise_panel_data = {
-	.on = mipi_orise_lcd_on,
-	.off = mipi_orise_lcd_off,
-	.set_backlight = mipi_orise_set_backlight,
-};
-
-static int ch_used[3];
-
-int mipi_orise_device_register(struct msm_panel_info *pinfo,
-					u32 channel, u32 panel)
-{
-	struct platform_device *pdev = NULL;
-	int ret;
-
-	if ((channel >= 3) || ch_used[channel])
-		return -ENODEV;
-
-	ch_used[channel] = TRUE;
-
-	pdev = platform_device_alloc("mipi_orise", (panel << 8)|channel);
-	if (!pdev)
-		return -ENOMEM;
-
-	orise_panel_data.panel_info = *pinfo;
-
-	ret = platform_device_add_data(pdev, &orise_panel_data,
-		sizeof(orise_panel_data));
-	if (ret) {
-		printk(KERN_ERR
-		  "%s: platform_device_add_data failed!\n", __func__);
-		goto err_device_put;
-	}
-
-	ret = platform_device_add(pdev);
-	if (ret) {
-		printk(KERN_ERR
-		  "%s: platform_device_register failed!\n", __func__);
-		goto err_device_put;
-	}
-
-	return 0;
-
-err_device_put:
-	platform_device_put(pdev);
-	return ret;
-}
-
-static int __init mipi_orise_lcd_init(void)
-{
-	mipi_dsi_buf_alloc(&orise_tx_buf, DSI_BUF_SIZE);
-	mipi_dsi_buf_alloc(&orise_rx_buf, DSI_BUF_SIZE);
-
-	return platform_driver_register(&this_driver);
-}
-
-module_init(mipi_orise_lcd_init);
-
-#else	
-//1080p lcd driver
-
-/* Copyright (c) 2012, Code Aurora Forum. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
-
-#include "msm_fb.h"
-#include "mipi_dsi.h"
-#include "mipi_orise.h"
-#include "mdp4.h"
-
-#include <mach/gpio.h>				//for 8064gpio
-#include <linux/mfd/pm8xxx/pm8921.h>	//for 8921
-#include <linux/irq.h>
-
-#define PM8921_GPIO_BASE		NR_GPIO_IRQS
-#define PM8921_GPIO_PM_TO_SYS(pm_gpio)	(pm_gpio - 1 + PM8921_GPIO_BASE)
-
-#define MIPI_STOD13_EN		0
-
-DEFINE_MUTEX(mipi_bkl_mutex);
-
-#define MIPI_CMD_INIT
-
-static struct mipi_dsi_panel_platform_data *mipi_orise_pdata;
-
-static struct dsi_buf orise_tx_buf;
-static struct dsi_buf orise_rx_buf;
-
-#ifdef MIPI_CMD_INIT
-static char protect_off[2] = {
-	0xb0, 	//Manufacuture Command Acceses Protect Off ( Hsync out option) 
-	0x04, 
-};
-
-static char hitachi_nop[2] = {
-	0x00, 	//NOP ( Hsync out option) 
-	0x00,
-};
-
-static char hsync_output[4] = {
-	0xc3, 	//Hsync Output ( Hsync out option) 
-	0x01, 0x00, 0x10,
-};
-
-static char protect_on[2] = {
-	0xb0,	//Manufacuture Command Acceses Protect On  ( Hsync out option) 
-	0x03,
-};
-
-static char cabc_control[2] = {
-	0x55,	//CABC control
-	0x02,
-};
-
-static char bkl_control[2] = {
-	0x53, 	//Back light control
-	0x2c,
-};
-
-static char te_out[2] = {
-	0x35,	//TE OUT 
-	0x00,
-};
-
-static char display_on[2] = {
-	0x29,	//display on
-	0x00,
-};
-
-static char sleep_out[2] = {
-	0x11,	//sleep out
-	0x00,
-};
-
-static char brightness_setting[3] = {
-	0x51,	//brightness_setting
-	0x0f, 0xff,
-};
-
-static char display_off[2] = {
-	0x28,	//display off
-	0x00,
-};
-
-static char sleep_in[2] = {
-	0x10,	//sleep in
-	0x00,
-};
-
-static char deep_stand_by[8] = {
-	0xb1,	//Deep standby off (option)
-	0x01,
-};
-
-//////////////////////////////////////////////
-#if 1
-static struct dsi_cmd_desc cmd_mipi_initial_sequence[] = {
-		{DTYPE_GEN_LWRITE, 1, 0, 0, 10,
-			sizeof(protect_off), protect_off},
-		{DTYPE_DCS_WRITE, 1, 0, 0, 10,
-			sizeof(hitachi_nop), hitachi_nop},
-		{DTYPE_DCS_WRITE, 1, 0, 0, 10,
-			sizeof(hitachi_nop), hitachi_nop},
-		{DTYPE_GEN_LWRITE, 1, 0, 0, 10,
-			sizeof(hsync_output), hsync_output},
-		{DTYPE_GEN_LWRITE, 1, 0, 0, 10,
-			sizeof(protect_on), protect_on},
-		{DTYPE_DCS_WRITE, 1, 0, 0, 10,
-			sizeof(hitachi_nop), hitachi_nop},
-		{DTYPE_DCS_WRITE, 1, 0, 0, 10,
-			sizeof(hitachi_nop), hitachi_nop},
-		{DTYPE_DCS_WRITE1, 1, 0, 0, 10,
-			sizeof(cabc_control), cabc_control},
-		{DTYPE_DCS_WRITE1, 1, 0, 0, 10,
-			sizeof(bkl_control), bkl_control},
-		{DTYPE_DCS_WRITE1, 1, 0, 0, 10,
-			sizeof(te_out), te_out},
-		{DTYPE_DCS_WRITE, 1, 0, 0, 10,
-			sizeof(display_on), display_on},
-		{DTYPE_DCS_WRITE, 1, 0, 0, 10,
-			sizeof(sleep_out), sleep_out},
-};
-#endif
-
-static struct dsi_cmd_desc cmd_brightness_setting[] = {
-		{DTYPE_DCS_LWRITE, 1, 0, 0, 10,
-			sizeof(brightness_setting), brightness_setting},
-};
-
-static struct dsi_cmd_desc cmd_sleep_and_off[] = {
-		{DTYPE_DCS_WRITE, 1, 0, 0, 150,
-			sizeof(display_off), display_off},
-		{DTYPE_DCS_WRITE, 1, 0, 0, 150,
-			sizeof(sleep_in), sleep_in},
-};
-
-static struct dsi_cmd_desc cmd_mipi_off_sequence[] = {
-		{DTYPE_GEN_LWRITE, 1, 0, 0, 10,
-			sizeof(protect_off), protect_off},
-		{DTYPE_DCS_WRITE, 1, 0, 0, 10,
-			sizeof(hitachi_nop), hitachi_nop},
-		{DTYPE_DCS_WRITE, 1, 0, 0, 10,
-			sizeof(hitachi_nop), hitachi_nop},
-		{DTYPE_GEN_LWRITE, 1, 0, 0, 10,
-			sizeof(deep_stand_by), deep_stand_by},
-};
-#endif
-
-static int mipi_orise_lcd_on(struct platform_device *pdev)
-{
-	struct msm_fb_data_type *mfd;
-	mfd = platform_get_drvdata(pdev);
-
-	if (!mfd)
-		return -ENODEV;
-	if (mfd->key != MFD_KEY)
-		return -EINVAL;
-
-#ifdef MIPI_CMD_INIT
-	mipi_dsi_cmds_tx(&orise_tx_buf, cmd_mipi_initial_sequence,
-		ARRAY_SIZE(cmd_mipi_initial_sequence));
-	mdelay(120);
-	mipi_dsi_cmds_tx(&orise_tx_buf, cmd_brightness_setting,
-		ARRAY_SIZE(cmd_brightness_setting));
-#endif
-
-	printk("1080p mipi_orise_lcd_on complete\n");
-	return 0;
-}
-
-static int mipi_orise_lcd_off(struct platform_device *pdev)
-{
-	struct msm_fb_data_type *mfd;
-	mfd = platform_get_drvdata(pdev);	
-	if (!mfd)
-		return -ENODEV;
-	if (mfd->key != MFD_KEY)
-		return -EINVAL;
-
-	mipi_dsi_cmds_tx(&orise_tx_buf, cmd_sleep_and_off,
-		ARRAY_SIZE(cmd_sleep_and_off));
-	mdelay(60);	//delay more than 3 frames
-
-	mipi_dsi_cmds_tx(&orise_tx_buf, cmd_mipi_off_sequence,
-		ARRAY_SIZE(cmd_mipi_off_sequence));
-	mdelay(5);
-
-	printk("1080p mipi_orise_lcd_off complete\n");
-
-	return 0;
-}
-
-static void mipi_orise_set_backlight(struct msm_fb_data_type *mfd)
-{
-}
-
-static int __devinit mipi_orise_lcd_probe(struct platform_device *pdev)
-{
-	struct msm_fb_data_type *mfd;
-	struct mipi_panel_info *mipi;
-	struct platform_device *current_pdev;
-	static struct mipi_dsi_phy_ctrl *phy_settings;
-	int rc = 0;
+	
 
 	if (pdev->id == 0) {
 		mipi_orise_pdata = pdev->dev.platform_data;
@@ -641,7 +325,7 @@ static struct msm_fb_panel_data orise_panel_data = {
 
 static int ch_used[3];
 
-int mipi_orise_device_register(struct msm_panel_info *pinfo,
+int mipi_orise_device_register_720p(struct msm_panel_info *pinfo,
 					u32 channel, u32 panel)
 {
 	struct platform_device *pdev = NULL;
@@ -685,8 +369,18 @@ static int __init mipi_orise_lcd_init(void)
 	mipi_dsi_buf_alloc(&orise_tx_buf, DSI_BUF_SIZE);
 	mipi_dsi_buf_alloc(&orise_rx_buf, DSI_BUF_SIZE);
 
-	return platform_driver_register(&this_driver);
+	printk("huyu----%s: --\n", __func__);
+	if(get_pcb_version() < 20 )
+	{
+		printk("huyu----%s: lcd is 720p!--\n", __func__);
+		return platform_driver_register(&this_driver);
+
+	}
+
+	return 0;
+
 }
 
 module_init(mipi_orise_lcd_init);
-#endif
+
+

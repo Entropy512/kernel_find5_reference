@@ -376,7 +376,8 @@ int mipi_dsi_clk_div_config(uint8 bpp, uint8 lanes,
 	struct dsi_clk_mnd_table const *mnd_entry = mnd_table;
 	if (pll_divider_config.clk_rate == 0)
 		pll_divider_config.clk_rate = 454000000;
-
+ 
+    //pll_divider_config.clk_rate = 320000000;// ky change 
 	rate = pll_divider_config.clk_rate / 1000000; /* In Mhz */
 
 	if (rate < 125) {

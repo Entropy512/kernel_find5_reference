@@ -810,7 +810,7 @@ static void hdmi_msm_hpd_state_work(struct work_struct *work)
 	}
 
 	hdmi_msm_state->hpd_stable = 1;
-	DEV_INFO("HDMI HPD: event detected\n");
+//	DEV_INFO("HDMI HPD: event detected\n");
 
 	if (!hdmi_msm_state->hpd_cable_chg_detected) {
 		mutex_unlock(&hdmi_msm_state_mutex);
@@ -825,7 +825,7 @@ static void hdmi_msm_hpd_state_work(struct work_struct *work)
 		/* QDSP OFF preceding the HPD event notification */
 		envp[0] = "HDCP_STATE=FAIL";
 		envp[1] = NULL;
-		DEV_INFO("HDMI HPD: QDSP OFF\n");
+//		DEV_INFO("HDMI HPD: QDSP OFF\n");
 		kobject_uevent_env(external_common_state->uevent_kobj,
 				   KOBJ_CHANGE, envp);
 		if (hpd_state) {
@@ -835,8 +835,8 @@ static void hdmi_msm_hpd_state_work(struct work_struct *work)
 			hdmi_msm_state->reauth = FALSE ;
 #endif
 			switch_set_state(&external_common_state->sdev, 1);
-			DEV_INFO("Hdmi state switched to %d: %s\n",
-				external_common_state->sdev.state,  __func__);
+//			DEV_INFO("Hdmi state switched to %d: %s\n",
+//				external_common_state->sdev.state,  __func__);
 
 			DEV_INFO("HDMI HPD: CONNECTED: send ONLINE\n");
 			kobject_uevent(external_common_state->uevent_kobj,
@@ -854,10 +854,10 @@ static void hdmi_msm_hpd_state_work(struct work_struct *work)
 #endif
 		} else {
 			switch_set_state(&external_common_state->sdev, 0);
-			DEV_INFO("Hdmi state switched to %d: %s\n",
-				external_common_state->sdev.state,  __func__);
+//			DEV_INFO("Hdmi state switched to %d: %s\n",
+//				external_common_state->sdev.state,  __func__);
 
-			DEV_INFO("HDMI HPD: DISCONNECTED: send OFFLINE\n");
+//			DEV_INFO("HDMI HPD: DISCONNECTED: send OFFLINE\n");
 			kobject_uevent(external_common_state->uevent_kobj,
 				KOBJ_OFFLINE);
 		}
@@ -1098,8 +1098,8 @@ static irqreturn_t hdmi_msm_isr(int irq, void *dev_id)
 			HDMI_INP_ND(0x011C));
 		if (hdmi_msm_state->full_auth_done) {
 			switch_set_state(&external_common_state->sdev, 0);
-			DEV_INFO("Hdmi state switched to %d: %s\n",
-				external_common_state->sdev.state,  __func__);
+		//	DEV_INFO("Hdmi state switched to %d: %s\n",
+		//		external_common_state->sdev.state,  __func__);
 
 			envp[0] = "HDCP_STATE=FAIL";
 			envp[1] = NULL;
@@ -3051,8 +3051,8 @@ static void hdmi_msm_hdcp_enable(void)
 	}
 
 	switch_set_state(&external_common_state->sdev, 1);
-	DEV_INFO("Hdmi state switched to %d: %s\n",
-		external_common_state->sdev.state, __func__);
+//	DEV_INFO("Hdmi state switched to %d: %s\n",
+//		external_common_state->sdev.state, __func__);
 	return;
 
 error:
@@ -3073,8 +3073,8 @@ error:
 			    &hdmi_msm_state->hdcp_reauth_work);
 	}
 	switch_set_state(&external_common_state->sdev, 0);
-	DEV_INFO("Hdmi state switched to %d: %s\n",
-		external_common_state->sdev.state, __func__);
+//	DEV_INFO("Hdmi state switched to %d: %s\n",
+//		external_common_state->sdev.state, __func__);
 }
 #endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT */
 
@@ -4389,8 +4389,8 @@ void mhl_connect_api(boolean on)
 	hdmi_msm_state->hpd_cable_chg_detected = FALSE;
 	/* QDSP OFF preceding the HPD event notification */
 	switch_set_state(&external_common_state->sdev, 0);
-	DEV_INFO("Hdmi state switched to %d: %s\n",
-		 external_common_state->sdev.state,  __func__);
+//	DEV_INFO("Hdmi state switched to %d: %s\n",
+//		 external_common_state->sdev.state,  __func__);
 	if (on) {
 		hdmi_msm_read_edid();
 		if (hdmi_msm_has_hdcp())
@@ -4410,16 +4410,16 @@ void mhl_connect_api(boolean on)
 			kobject_uevent_env(external_common_state->uevent_kobj,
 					   KOBJ_CHANGE, envp);
 			switch_set_state(&external_common_state->sdev, 1);
-			DEV_INFO("Hdmi state switched to %d: %s\n",
-				 external_common_state->sdev.state, __func__);
+//			DEV_INFO("Hdmi state switched to %d: %s\n",
+//				 external_common_state->sdev.state, __func__);
 		}
 	} else {
-		DEV_INFO("HDMI HPD: DISCONNECTED: send OFFLINE\n");
+	//	DEV_INFO("HDMI HPD: DISCONNECTED: send OFFLINE\n");
 		kobject_uevent(external_common_state->uevent_kobj,
 			       KOBJ_OFFLINE);
 		switch_set_state(&external_common_state->sdev, 0);
-		DEV_INFO("Hdmi state switched to %d: %s\n",
-			 external_common_state->sdev.state,  __func__);
+//		DEV_INFO("Hdmi state switched to %d: %s\n",
+//			 external_common_state->sdev.state,  __func__);
 	}
 }
 EXPORT_SYMBOL(mhl_connect_api);

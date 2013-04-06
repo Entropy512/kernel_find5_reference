@@ -75,9 +75,15 @@ int mdp4_overlay_writeback_on(struct platform_device *pdev)
 	buf = (uint8 *) fbi->fix.smem_start;
 	buf += fbi->var.xoffset * bpp +
 		fbi->var.yoffset * fbi->fix.line_length;
-
+	
+/* OPPO 2012-11-01 liuhd Modify begin for wfd standy */
+#ifndef CONFIG_VENDOR_EDIT
 	/* MDP cmd block enable */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+#else
+	mdp_clk_ctrl(1);//liuhd
+#endif
+/* OPPO 2012-11-01 liuhd Modify end */
 
 	if (writeback_pipe == NULL) {
 		pipe = mdp4_overlay_pipe_alloc(OVERLAY_TYPE_BF, MDP4_MIXER2);
@@ -113,7 +119,14 @@ int mdp4_overlay_writeback_on(struct platform_device *pdev)
 	MDP_OUTP(MDP_BASE + MDP4_OVERLAYPROC1_BASE + 0x5008,
 		(0x0 & 0xFFF));         /* 12-bit R */
 
+/* OPPO 2012-11-01 liuhd Modify begin for wfd standy */
+#ifndef CONFIG_VENDOR_EDIT
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+#else
+	mdp_clk_ctrl(0); //liuhd
+#endif
+/* OPPO 2012-11-01 liuhd Modify end */
+
 	return ret;
 }
 
@@ -130,10 +143,24 @@ int mdp4_overlay_writeback_off(struct platform_device *pdev)
 		writeback_pipe = NULL;
 	}
 	ret = panel_next_off(pdev);
+/* OPPO 2012-11-01 liuhd Modify begin for wfd standy */
+#ifndef CONFIG_VENDOR_EDIT
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+#else
+	mdp_clk_ctrl(1);//liuhd
+#endif
+/* OPPO 2012-11-01 liuhd Modify end */
+
 	/* MDP_LAYERMIXER_WB_MUX_SEL to restore to default cfg*/
 	outpdw(MDP_BASE + 0x100F4, 0x0);
+/* OPPO 2012-11-01 liuhd Modify begin for wfd standy */
+#ifndef CONFIG_VENDOR_EDIT
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+#else
+	mdp_clk_ctrl(0); //liuhd
+#endif
+/* OPPO 2012-11-01 liuhd Modify end */
+
 	return ret;
 }
 int mdp4_overlay_writeback_update(struct msm_fb_data_type *mfd)
@@ -160,7 +187,13 @@ int mdp4_overlay_writeback_update(struct msm_fb_data_type *mfd)
 		fbi->var.yoffset * fbi->fix.line_length;
 
 	/* MDP cmd block enable */
+/* OPPO 2012-11-01 liuhd Modify begin for wfd standy */
+#ifndef CONFIG_VENDOR_EDIT
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+#else
+	mdp_clk_ctrl(1); //liuhd
+#endif
+/* OPPO 2012-11-01 liuhd Modify end */
 
 	pipe->src_height = fbi->var.yres;
 	pipe->src_width = fbi->var.xres;
@@ -186,8 +219,14 @@ int mdp4_overlay_writeback_update(struct msm_fb_data_type *mfd)
 	mdp4_overlayproc_cfg(pipe);
 	mdp4_mixer_stage_commit(pipe->mixer_num);
 	/* MDP cmd block disable */
+/* OPPO 2012-11-01 liuhd Modify begin for wfd standy */
+#ifndef CONFIG_VENDOR_EDIT
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-
+#else
+	mdp_clk_ctrl(0); //liuhd
+#endif
+/* OPPO 2012-11-01 liuhd Modify end */
+	 
 	wmb();
 	return 0;
 }
@@ -285,6 +324,11 @@ void mdp4_writeback_kickoff_video(struct msm_fb_data_type *mfd,
 		mutex_unlock(&mfd->unregister_mutex);
 		return;
 	}
+/* OPPO 2012-11-01 liuhd Add begin for wfd standy */
+#ifdef	CONFIG_VENDOR_EDIT
+	mdp_clk_ctrl(1); //liuhd
+#endif
+/* OPPO 2012-11-01 liuhd Add end */
 
 	if (writeback_pipe->blt_cnt == 0)
 		mdp4_overlay_writeback_update(mfd);
@@ -295,6 +339,11 @@ void mdp4_writeback_kickoff_video(struct msm_fb_data_type *mfd,
 
 	mdp4_writeback_overlay_kickoff(mfd, pipe);
 	mdp4_writeback_dma_busy_wait(mfd);
+/* OPPO 2012-11-01 liuhd Add begin for wfd standy */
+#ifdef	CONFIG_VENDOR_EDIT
+	mdp_clk_ctrl(0); //liuhd
+#endif	
+/* OPPO 2012-11-01 liuhd Add end */
 
 	/* move current committed iommu to freelist */
 	mdp4_overlay_iommu_pipe_free(pipe->pipe_ndx, 0);
