@@ -1008,4 +1008,28 @@ config TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE
 	  To compile this driver as a module, choose M here: the
 	  module will be called synaptics_dsx_fw_update.
 
+config TOUCHSCREEN_MELFAS
+	tristate "MELFAS touchscreen driver"
+	depends on I2C
+	help
+	  Say Y here if you have a MELFAS touchscreen.
+
+	  If unsure, say N.
+
+
+config TOUCHSCREEN_ELAN_KTF2K
+	tristate "ELAN ktf2k touchscreen driver"
+	depends on I2C
+	help
+	  Say Y here if you have a ELAN touchscreen.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_SYNAPTICS_S3202_I2C_RMI
+	tristate "Synaptics s3202 i2c touchscreen"
+	depends on I2C
+	help
+	  This enables support for Synaptics s3202 RMI over I2C based touchscreens.
+
+
 endif
