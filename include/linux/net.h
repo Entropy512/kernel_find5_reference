@@ -43,6 +43,9 @@
 #define SYS_ACCEPT4	18		/* sys_accept4(2)		*/
 #define SYS_RECVMMSG	19		/* sys_recvmmsg(2)		*/
 #define SYS_SENDMMSG	20		/* sys_sendmmsg(2)		*/
+#ifdef CONFIG_VENDOR_EDIT //liuhd add for vpn
+#define PPP_MTU 1500
+#endif
 
 typedef enum {
 	SS_FREE = 0,			/* not allocated		*/
