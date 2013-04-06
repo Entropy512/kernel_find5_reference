@@ -648,7 +648,8 @@ int msm_mctl_release_free_buf(struct msm_cam_media_controller *pmctl,
 			(uint32_t) videobuf2_to_pmem_contig(&buf->vidbuf, 0);
 		if (free_buf->ch_paddr[0] == buf_phyaddr) {
 			D("%s buf = 0x%x\n", __func__, free_buf->ch_paddr[0]);
-			buf->state = MSM_BUFFER_STATE_UNUSED;
+			//buf->state = MSM_BUFFER_STATE_UNUSED;
+			buf->state = MSM_BUFFER_STATE_QUEUED; /*OPPO HDR*/
 			rc = 0;
 			break;
 		}

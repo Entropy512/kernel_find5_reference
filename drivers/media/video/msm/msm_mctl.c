@@ -832,7 +832,7 @@ int msm_mctl_init(struct msm_cam_v4l2_device *pcam)
 	pmctl->sensor_sdev = pcam->sensor_sdev;
 	pmctl->sdata = pcam->sdata;
 
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
+#if 0 //def CONFIG_MSM_MULTIMEDIA_USE_ION /*OPPO*/
 	pmctl->client = msm_ion_client_create(-1, "camera");
 	kref_init(&pmctl->refcount);
 #endif

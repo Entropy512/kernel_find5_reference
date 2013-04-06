@@ -1046,7 +1046,8 @@ static int vfe32_start(struct msm_cam_media_controller *pmctl)
 	}
 
 	if (vfe32_ctrl->operation_mode & VFE_OUTPUTS_RDI0)
-		msm_camera_io_w(1, vfe32_ctrl->vfebase +
+		//msm_camera_io_w(1, vfe32_ctrl->vfebase +
+		msm_camera_io_w(3, vfe32_ctrl->vfebase + /*OPPO HDR*/
 		vfe32_AXI_WM_CFG[vfe32_ctrl->outpath.out2.ch0]);
 	if (vfe32_ctrl->operation_mode & VFE_OUTPUTS_RDI1)
 		msm_camera_io_w(1, vfe32_ctrl->vfebase +
@@ -3160,6 +3161,24 @@ static void vfe32_process_output_path_irq_0(void)
 			vfe32_ctrl->liveshot_state == VFE_STATE_STOPPED)
 			vfe32_ctrl->outpath.out0.capture_cnt--;
 
+		if (vfe32_ctrl->operation_mode ==
+				VFE_OUTPUTS_THUMB_AND_MAIN ||
+			vfe32_ctrl->operation_mode ==
+				VFE_OUTPUTS_MAIN_AND_THUMB ||
+			vfe32_ctrl->operation_mode ==
+				VFE_OUTPUTS_THUMB_AND_JPEG ||
+			vfe32_ctrl->operation_mode ==
+				VFE_OUTPUTS_JPEG_AND_THUMB ||
+			vfe32_ctrl->operation_mode ==
+				VFE_OUTPUTS_RAW)  {
+			if ((vfe32_ctrl->outpath.out0.capture_cnt == 0)
+				&& (vfe32_ctrl->outpath.out1.
+				capture_cnt == 0)) {
+				vfe32_send_isp_msg(vfe32_ctrl,
+					MSG_ID_SNAPSHOT_DONE);
+			}
+		}/*OPPO*/
+
 		vfe_send_outmsg(&vfe32_ctrl->subdev,
 			MSG_ID_OUTPUT_PRIMARY, ch0_paddr,
 			ch1_paddr, ch2_paddr);
@@ -3229,6 +3248,24 @@ static void vfe32_process_output_path_irq_1(void)
 			vfe32_ctrl->operation_mode ==
 				VFE_OUTPUTS_JPEG_AND_THUMB)
 			vfe32_ctrl->outpath.out1.capture_cnt--;
+
+		if (vfe32_ctrl->operation_mode ==
+				VFE_OUTPUTS_THUMB_AND_MAIN ||
+			vfe32_ctrl->operation_mode ==
+				VFE_OUTPUTS_MAIN_AND_THUMB ||
+			vfe32_ctrl->operation_mode ==
+				VFE_OUTPUTS_THUMB_AND_JPEG ||
+			vfe32_ctrl->operation_mode ==
+				VFE_OUTPUTS_JPEG_AND_THUMB ||
+			vfe32_ctrl->operation_mode ==
+				VFE_OUTPUTS_RAW)  {
+			if ((vfe32_ctrl->outpath.out0.capture_cnt == 0)
+				&& (vfe32_ctrl->outpath.out1.
+				capture_cnt == 0)) {
+				vfe32_send_isp_msg(vfe32_ctrl,
+					MSG_ID_SNAPSHOT_DONE);
+			}
+		}/*OPPO*/
 
 		vfe_send_outmsg(&vfe32_ctrl->subdev,
 			MSG_ID_OUTPUT_SECONDARY, ch0_paddr,
@@ -4476,8 +4513,8 @@ static void msm_axi_process_irq(struct v4l2_subdev *sd, void *arg)
 				CAMIF_COMMAND_STOP_IMMEDIATELY,
 				vfe32_ctrl->vfebase +
 				VFE_CAMIF_COMMAND);
-			vfe32_send_isp_msg(vfe32_ctrl,
-				MSG_ID_SNAPSHOT_DONE);
+			/*vfe32_send_isp_msg(vfe32_ctrl,
+				MSG_ID_SNAPSHOT_DONE);*//*OPPO*/
 		}
 	}
 }

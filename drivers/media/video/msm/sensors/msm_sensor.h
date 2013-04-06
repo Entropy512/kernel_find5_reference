@@ -118,9 +118,11 @@ struct msm_sensor_fn_t {
 	int32_t (*sensor_set_fps) (struct msm_sensor_ctrl_t *,
 			struct fps_cfg *);
 	int32_t (*sensor_write_exp_gain) (struct msm_sensor_ctrl_t *,
-			uint16_t, uint32_t);
+			//uint16_t, uint32_t);
+			uint16_t, uint32_t, int32_t, uint16_t);/*OPPO HDR*/
 	int32_t (*sensor_write_snapshot_exp_gain) (struct msm_sensor_ctrl_t *,
-			uint16_t, uint32_t);
+			//uint16_t, uint32_t);
+			uint16_t, uint32_t, int32_t, uint16_t);/*OPPO HDR*/
 	int32_t (*sensor_setting) (struct msm_sensor_ctrl_t *,
 			int update_type, int rt);
 	int32_t (*sensor_csi_setting) (struct msm_sensor_ctrl_t *,
@@ -140,6 +142,8 @@ struct msm_sensor_fn_t {
 		(struct msm_sensor_ctrl_t *s_ctrl, uint16_t res);
 	int32_t (*sensor_get_csi_params)(struct msm_sensor_ctrl_t *,
 		struct csi_lane_params_t *);
+	int32_t (*sensor_hdr_update)(struct msm_sensor_ctrl_t *,
+		struct sensor_hdr_update_parm_t *);/*OPPO HDR*/
 };
 
 struct msm_sensor_csi_info {
@@ -196,9 +200,11 @@ void msm_sensor_group_hold_off(struct msm_sensor_ctrl_t *s_ctrl);
 int32_t msm_sensor_set_fps(struct msm_sensor_ctrl_t *s_ctrl,
 			struct fps_cfg   *fps);
 int32_t msm_sensor_write_exp_gain1(struct msm_sensor_ctrl_t *s_ctrl,
-		uint16_t gain, uint32_t line);
+		//uint16_t gain, uint32_t line);
+		uint16_t gain, uint32_t line, int32_t luma_avg, uint16_t fgain);/*OPPO HDR*/
 int32_t msm_sensor_write_exp_gain2(struct msm_sensor_ctrl_t *s_ctrl,
-		uint16_t gain, uint32_t line);
+		//uint16_t gain, uint32_t line);
+		uint16_t gain, uint32_t line, int32_t luma_avg,	uint16_t fgain);/*OPPO HDR*/
 int32_t msm_sensor_set_sensor_mode(struct msm_sensor_ctrl_t *s_ctrl,
 	int mode, int res);
 int32_t msm_sensor_mode_init(struct msm_sensor_ctrl_t *s_ctrl,
@@ -209,6 +215,12 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			void __user *argp);
 int32_t msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl);
 int32_t msm_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl);
+/* OPPO 2012-09-15 yxq added begin for s5k6a3yx */
+int32_t s5k6a3yx_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl);
+int32_t s5k6a3yx_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl);
+int32_t imx135_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl);
+int32_t imx135_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl);
+/* OPPO 2012-09-15 yxq added end */
 
 int32_t msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl);
 int msm_sensor_i2c_probe(struct i2c_client *client,

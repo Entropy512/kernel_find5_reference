@@ -73,14 +73,16 @@ int32_t msm_actuator_i2c_write(struct msm_actuator_ctrl_t *a_ctrl,
 	CDBG("%s: IN\n", __func__);
 	for (i = 0; i < size; i++) {
 		if (write_arr[i].reg_write_type == MSM_ACTUATOR_WRITE_DAC) {
-			value = (next_lens_position <<
+			value = ((next_lens_position <<
 				write_arr[i].data_shift) |
-				((hw_dword & write_arr[i].hw_mask) >>
-				write_arr[i].hw_shift);
+				(hw_dword & write_arr[i].hw_mask)) >>
+				write_arr[i].hw_shift;
 
 			if (write_arr[i].reg_addr != 0xFFFF) {
 				i2c_byte1 = write_arr[i].reg_addr;
 				i2c_byte2 = value;
+                /* OPPO 2012-10-25 liuwd delete begin for vcm Compatibility */
+                #ifndef CONFIG_VENDOR_EDIT
 				if (size != (i+1)) {
 					i2c_byte2 = (i2c_byte2 & 0xFF00) >> 8;
 					CDBG("%s: byte1:0x%x, byte2:0x%x\n",
@@ -99,6 +101,8 @@ int32_t msm_actuator_i2c_write(struct msm_actuator_ctrl_t *a_ctrl,
 					i2c_byte1 = write_arr[i].reg_addr;
 					i2c_byte2 = value & 0xFF;
 				}
+				#endif
+                /* OPPO 2012-10-25 liuwd delete end */
 			} else {
 				i2c_byte1 = (value & 0xFF00) >> 8;
 				i2c_byte2 = value & 0xFF;
@@ -230,12 +234,12 @@ int32_t msm_actuator_move_focus(
 	int16_t dest_step_pos = move_params->dest_step_pos;
 	uint16_t curr_lens_pos = 0;
 	int dir = move_params->dir;
-	int32_t num_steps = move_params->num_steps;
+	//int32_t num_steps = move_params->num_steps;
 
-	CDBG("%s called, dir %d, num_steps %d\n",
+	/*CDBG("%s called, dir %d, num_steps %d\n",
 		__func__,
 		dir,
-		num_steps);
+		num_steps);*/
 
 	if (dest_step_pos == a_ctrl->curr_step_pos)
 		return rc;
@@ -273,7 +277,10 @@ int32_t msm_actuator_move_focus(
 			curr_lens_pos = target_lens_pos;
 
 		} else {
-			target_step_pos = step_boundary;
+			if(a_ctrl->curr_step_pos == step_boundary)/*OPPO*/
+				target_step_pos = dest_step_pos;
+			else
+				target_step_pos = step_boundary;
 			target_lens_pos =
 				a_ctrl->step_position_table[target_step_pos];
 			if (curr_lens_pos == target_lens_pos)

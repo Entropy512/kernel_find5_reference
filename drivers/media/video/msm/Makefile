@@ -19,6 +19,9 @@ else
 endif
 obj-$(CONFIG_MSM_CAMERA) += msm_axi_qos.o gemini/
 obj-$(CONFIG_MSM_CAMERA_FLASH) += flash.o
+# OPPO 2012-08-10 yxq added begin for ssl3252
+obj-$(CONFIG_MSM_CAMERA_FLASH_SSL3252) += ssl3252.o
+# OPPO 2012-08-10 yxq added end
 obj-$(CONFIG_ARCH_MSM_ARM11) += msm_vfe7x.o
 ifeq ($(CONFIG_MSM_CAMERA_V4L2),y)
   obj-$(CONFIG_ARCH_MSM7X27A) += msm_vfe7x27a_v4l2.o

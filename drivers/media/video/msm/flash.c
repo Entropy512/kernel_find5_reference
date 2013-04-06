@@ -561,6 +561,8 @@ int32_t msm_camera_flash_set_led_state(
 	struct msm_camera_sensor_flash_data *fdata, unsigned led_state)
 {
 	int32_t rc;
+        
+	rc = -ENODEV;
 
 	if (fdata->flash_type != MSM_CAMERA_FLASH_LED ||
 		fdata->flash_src == NULL)
@@ -594,6 +596,13 @@ int32_t msm_camera_flash_set_led_state(
 				&fdata->flash_src->_fsrc.ext_driver_src,
 				led_state);
 		break;
+
+/* OPPO 2012-08-11 yxq added begin for oppo_led_control */
+	case MSM_CAMERA_FLASH_SRC_OPPO:
+		if(fdata->flash_src->_fsrc.oppo_src.led_control)
+			rc = fdata->flash_src->_fsrc.oppo_src.led_control(led_state);
+		break;
+/* OPPO 2012-08-11 yxq added end */
 
 	default:
 		rc = -ENODEV;

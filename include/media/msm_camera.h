@@ -816,7 +816,9 @@ struct msm_snapshot_pp_status {
 #define CFG_START_STREAM              44
 #define CFG_STOP_STREAM               45
 #define CFG_GET_CSI_PARAMS            46
-#define CFG_MAX			47
+//#define CFG_MAX			47
+#define CFG_HDR_UPDATE                47/*OPPO HDR*/
+#define CFG_MAX						  48/*OPPO HDR*/
 
 
 #define MOVE_NEAR	0
@@ -1034,11 +1036,26 @@ struct sensor_pict_fps {
 struct exp_gain_cfg {
 	uint16_t gain;
 	uint32_t line;
+	int32_t luma_avg;/*OPPO HDR*/
+	uint16_t fgain;/*OPPO HDR*/
 };
 
 struct focus_cfg {
 	int32_t steps;
 	int dir;
+};
+
+enum sensor_hdr_update_t/*OPPO HDR*/
+{
+	SENSOR_HDR_UPDATE_AWB,
+	SENSOR_HDR_UPDATE_LSC,
+};
+
+struct sensor_hdr_update_parm_t/*OPPO HDR*/
+{
+	enum sensor_hdr_update_t type;
+	uint16_t awb_gain_r, awb_gain_b;
+	uint8_t lsc_table[504];
 };
 
 struct fps_cfg {
@@ -1279,6 +1296,7 @@ struct sensor_cfg_data {
 		struct sensor_output_info_t output_info;
 		struct msm_eeprom_data_t eeprom_data;
 		struct csi_lane_params_t csi_lane_params;
+		struct sensor_hdr_update_parm_t hdr_update_parm;/*OPPO HDR*/
 		/* QRD */
 		uint16_t antibanding;
 		uint8_t contrast;
