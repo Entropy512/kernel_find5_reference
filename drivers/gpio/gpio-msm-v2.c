@@ -155,6 +155,13 @@ void __msm_gpio_set_intr_cfg_enable(unsigned gpio, unsigned val)
 	}
 }
 
+//wjp test for cr400562
+unsigned  __msm_gpio_get_intr_cfg_enable(unsigned gpio)
+{
+       return __msm_gpio_get_intr_config(gpio) & INTR_ENABLE;
+}
+//wjp test for cr400562
+
 void __msm_gpio_set_intr_cfg_type(unsigned gpio, unsigned type)
 {
 	unsigned cfg;
