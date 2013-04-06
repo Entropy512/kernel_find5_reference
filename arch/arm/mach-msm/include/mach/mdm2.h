@@ -31,6 +31,10 @@ struct mdm_platform_data {
 	struct mdm_vddmin_resource *vddmin_resource;
 	struct platform_device *peripheral_platform_device;
 	const unsigned int ramdump_timeout_ms;
+	#ifdef CONFIG_VENDOR_EDIT
+	/* DuYuanHua@OnLineRD.AirService.MDM, 2012/09/26, Add for shutthing down MDM slow */
+	int send_shdn;
+	#endif /* VENDOR_EDIT */
 };
 
 #endif

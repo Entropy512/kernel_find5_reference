@@ -60,9 +60,16 @@ static struct resource msm_fb_resources[] = {
 #define LVDS_CHIMEI_PANEL_NAME "lvds_chimei_wxga"
 #define LVDS_FRC_PANEL_NAME "lvds_frc_fhd"
 #define MIPI_VIDEO_TOSHIBA_WSVGA_PANEL_NAME "mipi_video_toshiba_wsvga"
+/* OPPO 2012-07-21 zhengzk Add begin for add orise module */
+#define MIPI_VIDEO_ORISE_720P_PANEL_NAME	"mipi_video_orise_720p"
+/* OPPO 2012-07-21 zhengzk Add end */
 #define MIPI_VIDEO_CHIMEI_WXGA_PANEL_NAME "mipi_video_chimei_wxga"
 #define HDMI_PANEL_NAME "hdmi_msm"
 #define TVOUT_PANEL_NAME "tvout_msm"
+
+/* OPPO 2012-07-21 zhengzk Add begin for MIPI speedup */
+#define MDP_SPEEDUP_FOR_MIPI
+/* OPPO 2012-07-21 zhengzk Add end */
 
 #define LVDS_PIXEL_MAP_PATTERN_1	1
 #define LVDS_PIXEL_MAP_PATTERN_2	2
@@ -73,6 +80,9 @@ static unsigned char hdmi_is_primary = 1;
 static unsigned char hdmi_is_primary;
 #endif
 
+//OPPO 2012-10-23 huyu add for lcd compatible
+extern int get_pcb_version(void);
+
 unsigned char apq8064_hdmi_as_primary_selected(void)
 {
 	return hdmi_is_primary;
@@ -82,6 +92,8 @@ static void set_mdp_clocks_for_wuxga(void);
 
 static int msm_fb_detect_panel(const char *name)
 {
+	/* OPPO 2012-07-24 zhengzk Modify for MIPI start */
+#if 0
 	u32 version;
 	if (machine_is_apq8064_liquid()) {
 		version = socinfo_get_platform_version();
@@ -115,7 +127,16 @@ static int msm_fb_detect_panel(const char *name)
 			return 0;
 		}
 	}
+#else
+	if (!strncmp(name, MIPI_VIDEO_ORISE_720P_PANEL_NAME,
+		strnlen(MIPI_VIDEO_ORISE_720P_PANEL_NAME,
+			PANEL_NAME_MAX_LEN)))
+		return 0;
+#endif
+/* OPPO 2012-07-24 zhengzk Modify for MIPI end */
 
+/* OPPO 2012-10-13 zhengzk Delete begin for remove HDMI module */
+#if 1
 	if (!strncmp(name, HDMI_PANEL_NAME,
 			strnlen(HDMI_PANEL_NAME,
 				PANEL_NAME_MAX_LEN))) {
@@ -123,6 +144,8 @@ static int msm_fb_detect_panel(const char *name)
 			set_mdp_clocks_for_wuxga();
 		return 0;
 	}
+#endif
+/* OPPO 2012-10-13 zhengzk Delete end */
 
 
 	return -ENODEV;
@@ -168,8 +191,15 @@ static struct msm_bus_vectors mdp_ui_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_MDP_PORT0,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		/* OPPO 2012-07-23 zhengzk Modify begin for improve MDP speed */
+#ifdef MDP_SPEEDUP_FOR_MIPI
+		.ab = 2000000000,
+		.ib = 2000000000,
+#else
 		.ab = 216000000 * 2,
 		.ib = 270000000 * 2,
+#endif
+		/* OPPO 2012-07-23 zhengzk Modify end */
 	},
 };
 
@@ -178,8 +208,15 @@ static struct msm_bus_vectors mdp_vga_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_MDP_PORT0,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		/* OPPO 2012-07-23 zhengzk Modify begin for improve MDP speed */
+#ifdef MDP_SPEEDUP_FOR_MIPI
+		.ab = 2000000000,
+		.ib = 2000000000,
+#else
 		.ab = 216000000 * 2,
 		.ib = 270000000 * 2,
+#endif
+		/* OPPO 2012-07-23 zhengzk Modify end */
 	},
 };
 
@@ -188,8 +225,15 @@ static struct msm_bus_vectors mdp_720p_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_MDP_PORT0,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		/* OPPO 2012-07-23 zhengzk Modify begin for improve MDP speed */
+#ifdef MDP_SPEEDUP_FOR_MIPI
+		.ab = 2000000000,
+		.ib = 2000000000,
+#else
 		.ab = 230400000 * 2,
 		.ib = 288000000 * 2,
+#endif
+		/* OPPO 2012-07-23 zhengzk Modify end */
 	},
 };
 
@@ -198,8 +242,15 @@ static struct msm_bus_vectors mdp_1080p_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_MDP_PORT0,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		/* OPPO 2012-07-23 zhengzk Modify begin for improve MDP speed */
+#ifdef MDP_SPEEDUP_FOR_MIPI
+		.ab = 2000000000,
+		.ib = 2000000000,
+#else
 		.ab = 334080000 * 2,
 		.ib = 417600000 * 2,
+#endif
+		/* OPPO 2012-07-23 zhengzk Modify end */
 	},
 };
 
@@ -238,7 +289,10 @@ static struct msm_bus_scale_pdata mdp_bus_scale_pdata = {
 
 static struct msm_panel_common_pdata mdp_pdata = {
 	.gpio = MDP_VSYNC_GPIO,
-	.mdp_max_clk = 200000000,
+/* OPPO 2012-11-22 huyu add for solving vertical play 1080p*/
+	//.mdp_max_clk = 200000000,
+	.mdp_max_clk = 266667000,
+/* OPPO 2012-11-22 huyu add for solving vertical play 1080p*/
 	.mdp_bus_scale_table = &mdp_bus_scale_pdata,
 	.mdp_rev = MDP_REV_44,
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
@@ -247,7 +301,22 @@ static struct msm_panel_common_pdata mdp_pdata = {
 	.mem_hid = MEMTYPE_EBI1,
 #endif
 	.mdp_iommu_split_domain = 1,
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
+#ifdef CONFIG_VENDOR_EDIT	
+	.cont_splash_enabled = 0x01,
+	.splash_screen_addr = 0x00,
+	.splash_screen_size = 0x00,
+#endif
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
 };
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
+#ifdef CONFIG_VENDOR_EDIT	
+static char mipi_dsi_splash_is_enabled(void)
+{   
+	return mdp_pdata.cont_splash_enabled;
+}
+#endif
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
 
 void __init apq8064_mdp_writeback(struct memtype_reserve* reserve_table)
 {
@@ -334,11 +403,29 @@ static struct platform_device wfd_device = {
 #define HDMI_DDC_DATA_GPIO	71
 #define HDMI_HPD_GPIO		72
 
+#define LCD_5V_EN			85
+#define LCD_5V_EN_DVT		81
+
+//#define LM3528_ENABLE_GPIO   86
+
 static bool dsi_power_on;
 static int mipi_dsi_panel_power(int on)
 {
+#if 0
+	/* OPPO 2012-08-31 zhengzk Modify begin for LCD */
+#ifdef CONFIG_1080P_LCD	//lcd 1080p
 	static struct regulator *reg_lvs7, *reg_l2, *reg_l11, *reg_ext_3p3v;
 	static int gpio36, gpio25, gpio26, mpp3;
+#else	//lcd 720p
+	static struct regulator *reg_lvs7, *reg_l2, *reg_l11, *reg_l22, *reg_ext_3p3v;
+	static int gpio36, gpio25, gpio26, mpp3;
+#endif
+	/* OPPO 2012-08-31 zhengzk Modify end */
+#else 
+	//OPPO 2012-10-23 huyu add for lcd compatible
+	static struct regulator *reg_lvs7, *reg_l2, *reg_l11, *reg_l22, *reg_ext_3p3v;
+	static int gpio36, gpio25, gpio26, mpp3;
+#endif
 	int rc;
 
 	pr_debug("%s: on=%d\n", __func__, on);
@@ -372,11 +459,43 @@ static int mipi_dsi_panel_power(int on)
 						PTR_ERR(reg_l11));
 				return -ENODEV;
 		}
+		/* OPPO 2012-08-31 zhengzk Modify begin for LCD */
+#if 0
 		rc = regulator_set_voltage(reg_l11, 3000000, 3000000);
+#else
+		rc = regulator_set_voltage(reg_l11, 3100000, 3100000);
+#endif
+		/* OPPO 2012-08-31 zhengzk Modify end */
 		if (rc) {
 				pr_err("set_voltage l11 failed, rc=%d\n", rc);
 				return -EINVAL;
 		}
+
+		/* OPPO 2012-08-31 zhengzk Add begin for LCD */
+	
+		reg_l22 = regulator_get(NULL, "8921_l22");
+		if (IS_ERR(reg_l22)) {
+				pr_err("could not get 8921_l22, rc = %ld\n",
+						PTR_ERR(reg_l22));
+				return -ENODEV;
+		}
+		if(get_pcb_version() >= 20)
+		{
+			rc = regulator_set_voltage(reg_l22, 1800000, 1800000);
+			if (rc) {
+					pr_err("set_voltage l22 failed, rc=%d\n", rc);
+					return -EINVAL;
+			}
+		}
+		else if(get_pcb_version() < 20)
+		{
+			rc = regulator_set_voltage(reg_l22, 2200000, 2200000);
+			if (rc) {
+					pr_err("set_voltage l22 failed, rc=%d\n", rc);
+					return -EINVAL;
+			}
+		}
+		/* OPPO 2012-08-31 zhengzk Modify end */
 
 		if (machine_is_apq8064_liquid()) {
 			reg_ext_3p3v = regulator_get(&msm_mipi_dsi1_device.dev,
@@ -416,6 +535,21 @@ static int mipi_dsi_panel_power(int on)
 			return -ENODEV;
 		}
 
+		if(get_pcb_version() >= 30)
+		{
+			//printk("%s: ---------------------  dvt!\n", __func__);
+			rc = gpio_request(LCD_5V_EN_DVT, "lcd_5v_en");
+		}
+		else
+		{
+			//printk("%s: ---------------------  evt!\n", __func__);
+			rc = gpio_request(LCD_5V_EN, "lcd_5v_en");
+		}
+		if (rc) {
+			pr_err("request gpio 86 failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+
 		dsi_power_on = true;
 	}
 
@@ -425,7 +559,31 @@ static int mipi_dsi_panel_power(int on)
 			pr_err("enable lvs7 failed, rc=%d\n", rc);
 			return -ENODEV;
 		}
+		/* OPPO 2012-08-31 zhengzk Add begin for LCD */
+		rc = regulator_enable(reg_l22);
+		if (rc) {
+			pr_err("enable l22 failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+		mdelay(10);
+		/* OPPO 2012-08-31 zhengzk Modify end */
 
+		if(get_pcb_version() >= 30)
+		{
+			rc = gpio_direction_output(LCD_5V_EN_DVT, 1);
+		}
+		else
+		{
+			rc = gpio_direction_output(LCD_5V_EN, 1);
+		}
+		if (rc) {
+			pr_err("%s: unable to enable LCD_5V_EN!!!!!!!!!!!!\n", __func__);
+			return -ENODEV;
+		}
+
+		gpio_set_value_cansleep(gpio36, 0);
+		gpio_set_value_cansleep(gpio25, 1);
+		
 		rc = regulator_set_optimum_mode(reg_l11, 110000);
 		if (rc < 0) {
 			pr_err("set_optimum_mode l11 failed, rc=%d\n", rc);
@@ -458,9 +616,18 @@ static int mipi_dsi_panel_power(int on)
 			gpio_set_value_cansleep(mpp3, 1);
 		}
 
-		gpio_set_value_cansleep(gpio36, 0);
-		gpio_set_value_cansleep(gpio25, 1);
+		//rc = gpio_direction_output(LM3528_ENABLE_GPIO, 1);
+		//if (rc) {
+		//	pr_err("%s: unable to enable lm3528!!!!!!!!!!!!\n", __func__);
+		//	return -ENODEV;
+		//}		
 	} else {
+		//rc = gpio_direction_output(LM3528_ENABLE_GPIO, 0);
+		//if (rc) {
+		//	pr_err("%s: unable to enable lm3528!!!!!!!!!!!!\n", __func__);
+		//	return -ENODEV;
+		//}		
+
 		gpio_set_value_cansleep(gpio25, 0);
 		gpio_set_value_cansleep(gpio36, 1);
 
@@ -481,6 +648,28 @@ static int mipi_dsi_panel_power(int on)
 			return -ENODEV;
 		}
 
+		if(get_pcb_version() >= 30)
+		{
+			rc = gpio_direction_output(LCD_5V_EN_DVT, 0);
+		}
+		else
+		{
+			rc = gpio_direction_output(LCD_5V_EN, 0);
+		}
+		if (rc) {
+			pr_err("%s: unable to enable LCD_5V_EN!!!!!!!!!!!!\n", __func__);
+			return -ENODEV;
+		}
+		/* OPPO 2012-08-31 zhengzk Add begin for LCD */
+		mdelay(10);
+		rc = regulator_disable(reg_l22);
+		if (rc) {
+			pr_err("disable reg_l22 failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+		/* OPPO 2012-08-31 zhengzk Modify end */
+
+		
 		rc = regulator_disable(reg_lvs7);
 		if (rc) {
 			pr_err("disable reg_lvs7 failed, rc=%d\n", rc);
@@ -497,8 +686,16 @@ static int mipi_dsi_panel_power(int on)
 	return 0;
 }
 
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
+#ifdef CONFIG_VENDOR_EDIT	
+static char mipi_dsi_splash_is_enabled(void);
+#endif
 static struct mipi_dsi_platform_data mipi_dsi_pdata = {
 	.dsi_power_save = mipi_dsi_panel_power,
+/* OPPO 2012-11-30 huyu modify for boot LOGO bluescreen*/
+#ifdef CONFIG_VENDOR_EDIT			
+	.splash_is_enabled = mipi_dsi_splash_is_enabled,
+#endif
 };
 
 static bool lvds_power_on;
@@ -680,6 +877,8 @@ static struct platform_device mipi_dsi2lvds_bridge_device = {
 	.dev.platform_data = &mipi_dsi2lvds_pdata,
 };
 
+/* OPPO 2012-07-23 zhengzk Modify for add orise module */
+#if 0
 static int toshiba_gpio[] = {LPM_CHANNEL};
 static struct mipi_dsi_panel_platform_data toshiba_pdata = {
 	.gpio = toshiba_gpio,
@@ -692,6 +891,22 @@ static struct platform_device mipi_dsi_toshiba_panel_device = {
 			.platform_data = &toshiba_pdata,
 	}
 };
+#else
+static int orise_gpio[] = {LPM_CHANNEL};
+static struct mipi_dsi_panel_platform_data orise_pdata = {
+	.gpio = orise_gpio,
+};
+
+static struct platform_device mipi_dsi_orise_panel_device = {
+
+	.name = "mipi_orise",
+	.id = 0,
+	.dev = {
+			.platform_data = &orise_pdata,
+	}
+};
+#endif
+/* OPPO 2012-07-23 zhengzk Modify end */
 
 static struct msm_bus_vectors dtv_bus_init_vectors[] = {
 	{
@@ -997,7 +1212,13 @@ void __init apq8064_init_fb(void)
 	if (machine_is_apq8064_liquid())
 		platform_device_register(&mipi_dsi2lvds_bridge_device);
 	if (machine_is_apq8064_mtp())
+	/* OPPO 2012-07-23 zhengzk Modify begin for add orise module */
+#if 0
 		platform_device_register(&mipi_dsi_toshiba_panel_device);
+#else
+		platform_device_register(&mipi_dsi_orise_panel_device);
+#endif
+	/* OPPO 2012-07-23 zhengzk Modify end */
 	if (machine_is_mpq8064_dtv())
 		platform_device_register(&lvds_frc_panel_device);
 

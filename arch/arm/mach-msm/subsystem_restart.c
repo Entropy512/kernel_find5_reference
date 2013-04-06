@@ -456,6 +456,19 @@ static void __subsystem_restart(struct subsys_data *subsys)
 		     __func__, subsys->name, rc);
 }
 
+
+//#ifdef VENDOR_EDIT
+//WuJinping@OnlineRD.AirService.Phone 2013.1.7, Add for modem subsystem restart not need pin
+extern void set_need_pin_process_flag(int flag);
+extern int get_sim_status(void);
+int modem_reset_num = 0;
+int get_modem_reset_num(void)
+{
+	return modem_reset_num;
+}
+//#endif /* VENDOR_EDIT */
+
+
 int subsystem_restart(const char *subsys_name)
 {
 	struct subsys_data *subsys;
@@ -467,6 +480,18 @@ int subsystem_restart(const char *subsys_name)
 
 	pr_info("Restart sequence requested for %s, restart_level = %d.\n",
 		subsys_name, restart_level);
+
+//#ifdef VENDOR_EDIT
+//WuJinping@OnlineRD.AirService.Phone 2013.1.7, Add for modem subsystem restart not need pin
+	if(!strncmp("external_modem", subsys_name,SUBSYS_NAME_MAX_LENGTH))
+	{
+		modem_reset_num++;
+		if(get_sim_status() == 1)
+		{
+			set_need_pin_process_flag(1);
+		}
+	}
+//#endif /* VENDOR_EDIT */
 
 	/* List of subsystems is protected by a lock. New subsystems can
 	 * still come in.
@@ -596,7 +621,15 @@ static int __init subsys_restart_init(void)
 {
 	int ret = 0;
 
+//#ifndef VENDOR_EDIT
+//WuJinping@OnlineRD.AirService.Modem  2012/12/05, Modify for modem reset not cause kernel reset
+/*
 	restart_level = RESET_SOC;
+*/
+//#else /* VENDOR_EDIT */	
+	restart_level = RESET_SUBSYS_COUPLED;
+//#endif /* VENDOR_EDIT */
+
 
 	ssr_wq = alloc_workqueue("ssr_wq", 0, 0);
 
