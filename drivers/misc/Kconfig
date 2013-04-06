@@ -661,4 +661,6 @@ source "drivers/misc/ti-st/Kconfig"
 source "drivers/misc/lis3lv02d/Kconfig"
 source "drivers/misc/carma/Kconfig"
 source "drivers/misc/altera-stapl/Kconfig"
+#liuyan add for breath led
+source "drivers/misc/shineled/Kconfig"
 endmenu
