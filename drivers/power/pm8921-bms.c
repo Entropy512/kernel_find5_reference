@@ -32,6 +32,13 @@
 #include <linux/mutex.h>
 #include <linux/rtc.h>
 
+
+/* OPPO 2013-01-07 chendx Add begin for very low voltage */
+#ifdef CONFIG_MACH_OPPO_FIND5
+#include <linux/mfd/pm8xxx/batt-alarm.h>
+#endif
+/* OPPO 2013-01-07 chendx Add end */
+
 #define BMS_CONTROL		0x224
 #define BMS_S1_DELAY		0x225
 #define BMS_OUTPUT0		0x230
@@ -61,6 +68,7 @@
 
 #define BATT_ALARM_ACCURACY	50	/* 50mV */
 
+
 enum pmic_bms_interrupts {
 	PM8921_BMS_SBI_WRITE_OK,
 	PM8921_BMS_CC_THR,
@@ -78,6 +86,18 @@ struct pm8921_soc_params {
 
 	int		last_good_ocv_uv;
 };
+
+/* OPPO 2012-12-17 chendx Add begin for BMS */
+#ifdef CONFIG_MACH_OPPO_FIND5
+#if 0
+#undef pr_debug
+#define pr_debug(fmt, ...) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
+#endif
+#define BMS_BATT_REMOVE_TEMP -350
+#define BMS_BATT_DEFAULT_TEMP 230
+extern int debug_feature;
+#endif
+/* OPPO 2012-12-17 chendx Add end */
 
 /**
  * struct pm8921_bms_chip -
@@ -161,6 +181,7 @@ struct pm8921_bms_chip {
 	int			soc_at_cv;
 	int			prev_chg_soc;
 	struct power_supply	*batt_psy;
+	bool                    low_voltage_wake_lock_held;
 	struct wake_lock	low_voltage_wake_lock;
 	int			soc_calc_period;
 	int			normal_voltage_calc_ms;
@@ -1434,6 +1455,7 @@ static int calculate_unusable_charge_uah(struct pm8921_bms_chip *chip,
 	 * if we are called first time fill all the
 	 * samples with the the shutdown_iavg_ua
 	 */
+#ifndef CONFIG_MACH_OPPO_FIND5
 	if (firsttime && chip->shutdown_iavg_ua != 0) {
 		pr_debug("Using shutdown_iavg_ua = %d in all samples\n",
 				chip->shutdown_iavg_ua);
@@ -1443,6 +1465,19 @@ static int calculate_unusable_charge_uah(struct pm8921_bms_chip *chip,
 		iavg_index = 0;
 		iavg_num_samples = IAVG_SAMPLES;
 	}
+#else
+	if (firsttime) {
+		pr_info("Using shutdown_iavg_ua = %d in all samples\n",
+				chip->shutdown_iavg_ua);
+	    chip->shutdown_iavg_ua = MIN_IAVG_MA;
+		for (i = 0; i < IAVG_SAMPLES; i++)
+			iavg_samples[i] = chip->shutdown_iavg_ua;
+
+		iavg_index = 0;
+		iavg_num_samples = IAVG_SAMPLES;
+	}
+#endif
+/* OPPO 2012-12-24 chendx Add end */
 
 	/*
 	 * if we are charging use a nominal avg current so that we keep
@@ -1489,6 +1524,19 @@ static int calculate_unusable_charge_uah(struct pm8921_bms_chip *chip,
 	firsttime = 0;
 	return uuc_uah_iavg;
 }
+
+/* OPPO 2013-01-14 chendx Add begin for get bms vbatt ocv */
+int get_bms_ocv_vbatt(int ibat_ua,int vbat_uv)
+{
+	int batt_ocv__uv;
+	int rbatt_mohm = the_chip->default_rbatt_mohm + the_chip->rconn_mohm;
+	batt_ocv__uv = vbat_uv + (ibat_ua * rbatt_mohm) / 1000;
+	if(debug_feature)
+		pr_info("estimated pon ocv = %d,%duv,%dua,%d\n", batt_ocv__uv,vbat_uv,ibat_ua,rbatt_mohm);
+	return batt_ocv__uv/1000;
+}
+EXPORT_SYMBOL(get_bms_ocv_vbatt);
+/* OPPO 2013-01-14 chendx Add end */
 
 /* calculate remainging charge at the time of ocv */
 static int calculate_remaining_charge_uah(struct pm8921_bms_chip *chip,
@@ -2015,6 +2063,64 @@ out:
 	return soc;
 }
 
+
+/* OPPO 2013-02-27 chendx Delete begin for not use IVAG VALUE and backup calib soc*/
+void backup_calib_soc(int calib_soc)
+{
+    if(the_chip != NULL){
+		pr_err("write Soc =%d to storage 0x%0x\n", calib_soc ,TEMP_SOC_STORAGE);
+		pm8xxx_writeb(the_chip->dev->parent, TEMP_SOC_STORAGE, calib_soc);
+    }else{
+		pr_err("the_chip is NULL!!!\n");
+    }
+}
+EXPORT_SYMBOL(backup_calib_soc);
+
+#define SOC_SHUTDOWN_VALID_LIMITS 20
+#define SOC_SHUTDOWN_VALID_LIMITS_1 12
+#define SOC_SHUTDOWN_VALID_LIMITS_2 5
+int read_calib_soc(void)
+{
+	u8 temp;
+	int rc;
+
+	if(the_chip == NULL){
+		pr_err("the_chip is NULL!\n");
+		return -1;
+	}
+
+	rc = pm8xxx_readb(the_chip->dev->parent, TEMP_SOC_STORAGE, &temp);
+	if (rc) {
+		pr_err("failed to read addr = %d, assuming %d\n",
+				TEMP_IAVG_STORAGE, rc);
+		return -1;
+	}
+
+	/*valid soc calibrate*/
+	if(temp >=100)
+		temp = 100;
+	else if(temp <=0)
+		temp = 0;
+
+	pr_info("calculated_soc =%d%%,backup SOC =%d%%\n",calculated_soc,temp);
+	if (abs(calculated_soc - temp) > SOC_SHUTDOWN_VALID_LIMITS ||
+		calculated_soc == 1 ||
+		calculated_soc == 0){
+		return calculated_soc;
+	}else if (abs(calculated_soc - temp) >= SOC_SHUTDOWN_VALID_LIMITS_1 &&
+	       temp > calculated_soc ){
+		temp = temp -2;
+	}else if (abs(calculated_soc - temp) >= SOC_SHUTDOWN_VALID_LIMITS_2 &&
+		  temp > calculated_soc ){
+		temp = temp -1;
+	}
+
+	return temp;
+
+}
+EXPORT_SYMBOL(read_calib_soc);
+/* OPPO 2013-02-27 chendx Add end */
+
 #define IGNORE_SOC_TEMP_DECIDEG		50
 #define IAVG_STEP_SIZE_MA	50
 #define IAVG_START		600
@@ -2039,9 +2145,14 @@ static void backup_soc_and_iavg(struct pm8921_bms_chip *chip, int batt_temp,
 	else
 		temp = soc;
 
+
+/* OPPO 2013-02-27 chendx Delete begin for delete backup soc */
+#if 0
 	/* don't store soc if temperature is below 5degC */
 	if (batt_temp > IGNORE_SOC_TEMP_DECIDEG)
 		pm8xxx_writeb(the_chip->dev->parent, TEMP_SOC_STORAGE, temp);
+#endif
+/* OPPO 2013-02-27 chendx Delete end */
 }
 
 static void read_shutdown_soc_and_iavg(struct pm8921_bms_chip *chip)
@@ -2138,15 +2249,42 @@ static int scale_soc_while_chg(struct pm8921_bms_chip *chip,
 	return scaled_soc;
 }
 
+/* OPPO 2012-12-24 chendx Add begin for force soc limts */
+#ifdef CONFIG_MACH_OPPO_FIND5
+#define SHUTDOWN_SOC_LIMITS_WITH_BOOT_MIN 20
+#define SHUTDOWN_SOC_LIMITS_WITH_BOOT_MAX 50
+#define SHUTDOWN_SOC_VALID_LIMITS 20
+#define SHUTDOWN_SOC_LIMITS 3
+#endif
+/* OPPO 2012-12-24 chendx Add end */
+
 static bool is_shutdown_soc_within_limits(struct pm8921_bms_chip *chip, int soc)
 {
+
+/* OPPO 2013-02-27 chendx Add begin for not use force shutdown soc */
+    return 0;
+/* OPPO 2013-02-27 chendx Add end */
+
 	if (shutdown_soc_invalid) {
-		pr_debug("NOT forcing shutdown soc = %d\n", chip->shutdown_soc);
+		pr_info("NOT forcing shutdown soc = %d\n", chip->shutdown_soc);
 		return 0;
 	}
 
+/* OPPO 2012-12-24 chendx Add begin for force soc limts */
+#ifdef CONFIG_MACH_OPPO_FIND5
+	pr_info("shutdown soc = %d%%,soc =%d%%\n", chip->shutdown_soc,soc);
+	if(soc <= SHUTDOWN_SOC_VALID_LIMITS &&
+		chip->shutdown_soc < SHUTDOWN_SOC_LIMITS &&
+		chip->shutdown_soc != 0){
+		pr_info("NOT forcing PON OCV and shutdown soc  = %d%%,soc =%d%%\n", chip->shutdown_soc,soc);
+		shutdown_soc_invalid = 1;
+		return 0;
+	}
+#endif
+/* OPPO 2012-12-24 chendx Add end */
+
 	if (abs(chip->shutdown_soc - soc) > chip->shutdown_soc_valid_limit) {
-		pr_debug("rejecting shutdown soc = %d, soc = %d limit = %d\n",
+		pr_info("rejecting shutdown soc = %d, soc = %d limit = %d\n",
 			chip->shutdown_soc, soc,
 			chip->shutdown_soc_valid_limit);
 		shutdown_soc_invalid = 1;
@@ -3031,7 +3169,14 @@ static int64_t read_battery_id(struct pm8921_bms_chip *chip)
 #define DESAY_5200_ID_MAX	0x802F
 static int set_battery_data(struct pm8921_bms_chip *chip)
 {
+
 	int64_t battery_id;
+
+/* OPPO 2012-12-10 chendx Add begin for LG battery data */
+#ifdef CONFIG_MACH_OPPO_FIND5
+	goto lg_batt;
+#endif
+/* OPPO 2012-12-10 chendx Add end */
 
 	if (chip->batt_type == BATT_DESAY)
 		goto desay;
@@ -3054,8 +3199,21 @@ static int set_battery_data(struct pm8921_bms_chip *chip)
 				battery_id);
 		goto palladium;
 	}
+lg_batt:
+	chip->fcc = OPPO_palladium_2500mAh_data.fcc;
+	chip->fcc_temp_lut = OPPO_palladium_2500mAh_data.fcc_temp_lut;
+	chip->fcc_sf_lut = OPPO_palladium_2500mAh_data.fcc_sf_lut;
+	chip->pc_temp_ocv_lut = OPPO_palladium_2500mAh_data.pc_temp_ocv_lut;
+	chip->pc_sf_lut = OPPO_palladium_2500mAh_data.pc_sf_lut;
+	chip->rbatt_sf_lut = OPPO_palladium_2500mAh_data.rbatt_sf_lut;
+	chip->default_rbatt_mohm
+			= OPPO_palladium_2500mAh_data.default_rbatt_mohm;
+	chip->delta_rbatt_mohm = OPPO_palladium_2500mAh_data.delta_rbatt_mohm;
+	return 0;
 
 palladium:
+/* OPPO 2012-12-10 chendx Delete begin for LG BATT */
+#ifndef CONFIG_MACH_OPPO_FIND5
 		chip->fcc = palladium_1500_data.fcc;
 		chip->fcc_temp_lut = palladium_1500_data.fcc_temp_lut;
 		chip->fcc_sf_lut = palladium_1500_data.fcc_sf_lut;
@@ -3067,6 +3225,7 @@ palladium:
 		chip->delta_rbatt_mohm = palladium_1500_data.delta_rbatt_mohm;
 		chip->rbatt_capacitive_mohm
 			= palladium_1500_data.rbatt_capacitive_mohm;
+#endif
 		return 0;
 desay:
 		chip->fcc = desay_5200_data.fcc;
