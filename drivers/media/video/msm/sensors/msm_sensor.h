@@ -54,6 +54,12 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			void __user *argp);
 int32_t msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl);
 int32_t msm_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl);
+/* OPPO 2012-09-15 yxq added begin for s5k6a3yx */
+int32_t s5k6a3yx_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl);
+int32_t s5k6a3yx_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl);
+int32_t imx135_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl);
+int32_t imx135_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl);
+/* OPPO 2012-09-15 yxq added end */
 
 int32_t msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl);
 int msm_sensor_i2c_probe(struct i2c_client *client,

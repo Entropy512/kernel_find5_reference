@@ -58,7 +58,8 @@ void msm_camio_bus_scale_cfg(struct msm_bus_scale_pdata *cam_bus_scale_table,
 	case S_PREVIEW:
 		if (bus_perf_client) {
 			rc = msm_bus_scale_client_update_request(
-				bus_perf_client, 1);
+				//bus_perf_client, 1);
+				bus_perf_client, 4);/*OPPO HDR*/
 			CDBG("%s: S_PREVIEW rc = %d\n", __func__, rc);
 		} else
 			CDBG("%s: Bus Client NOT Registered!!!\n", __func__);
@@ -66,7 +67,8 @@ void msm_camio_bus_scale_cfg(struct msm_bus_scale_pdata *cam_bus_scale_table,
 	case S_VIDEO:
 		if (bus_perf_client) {
 			rc = msm_bus_scale_client_update_request(
-				bus_perf_client, 2);
+				//bus_perf_client, 2);
+				bus_perf_client, 4);/*OPPO HDR*/
 			CDBG("%s: S_VIDEO rc = %d\n", __func__, rc);
 		} else
 			CDBG("%s: Bus Client NOT Registered!!!\n", __func__);

@@ -437,6 +437,7 @@ static int msm_server_control(struct msm_cam_server_dev *server_dev,
 	 * Now we only retry once. */
 	wait_count = 2;
 	do {
+	  /* Oppo changed this to wait_event_timeout - why? */
 		rc = wait_event_interruptible_timeout(queue->wait,
 			!list_empty_careful(&queue->list),
 			msecs_to_jiffies(out->timeout_ms));
@@ -569,7 +570,7 @@ int msm_server_get_crop(struct msm_cam_v4l2_device *pcam,
 	ctrlcmd.type = MSM_V4L2_GET_CROP;
 	ctrlcmd.length = sizeof(struct v4l2_crop);
 	ctrlcmd.value = (void *)crop;
-	ctrlcmd.timeout_ms = 1000;
+	ctrlcmd.timeout_ms = 3000;
 	ctrlcmd.vnode_id = pcam->vnode_id;
 	ctrlcmd.queue_idx = pcam->server_queue_idx;
 	ctrlcmd.stream_type = pcam->dev_inst[idx]->image_mode;
@@ -591,7 +592,7 @@ int msm_send_open_server(struct msm_cam_v4l2_device *pcam)
 	int idx = pcam->server_queue_idx;
 	D("%s qid %d\n", __func__, pcam->server_queue_idx);
 	ctrlcmd.type	   = MSM_V4L2_OPEN;
-	ctrlcmd.timeout_ms = 10000;
+	ctrlcmd.timeout_ms = 4500;
 	ctrlcmd.length = strnlen(
 		g_server_dev.config_info.config_dev_name[idx],
 		MAX_DEV_NAME_LEN)+1;
@@ -612,7 +613,7 @@ int msm_send_close_server(struct msm_cam_v4l2_device *pcam)
 	struct msm_ctrl_cmd ctrlcmd;
 	D("%s qid %d\n", __func__, pcam->server_queue_idx);
 	ctrlcmd.type	   = MSM_V4L2_CLOSE;
-	ctrlcmd.timeout_ms = 10000;
+	ctrlcmd.timeout_ms = 4500;
 	ctrlcmd.length	 = strnlen(g_server_dev.config_info.config_dev_name[
 				pcam->server_queue_idx], MAX_DEV_NAME_LEN)+1;
 	ctrlcmd.value    = (char *)g_server_dev.config_info.config_dev_name[
@@ -663,7 +664,7 @@ int msm_server_set_fmt(struct msm_cam_v4l2_device *pcam, int idx,
 	ctrlcmd.type       = MSM_V4L2_VID_CAP_TYPE;
 	ctrlcmd.length     = sizeof(struct img_plane_info);
 	ctrlcmd.value      = (void *)&plane_info;
-	ctrlcmd.timeout_ms = 10000;
+	ctrlcmd.timeout_ms = 4500;
 	ctrlcmd.vnode_id   = pcam->vnode_id;
 	ctrlcmd.queue_idx = pcam->server_queue_idx;
 	ctrlcmd.config_ident = g_server_dev.config_info.config_dev_id[0];
@@ -730,7 +731,7 @@ int msm_server_set_fmt_mplane(struct msm_cam_v4l2_device *pcam, int idx,
 	ctrlcmd.type       = MSM_V4L2_VID_CAP_TYPE;
 	ctrlcmd.length     = sizeof(struct img_plane_info);
 	ctrlcmd.value      = (void *)&plane_info;
-	ctrlcmd.timeout_ms = 10000;
+	ctrlcmd.timeout_ms = 4500;
 	ctrlcmd.vnode_id   = pcam->vnode_id;
 	ctrlcmd.queue_idx = pcam->server_queue_idx;
 
@@ -756,7 +757,7 @@ int msm_server_streamon(struct msm_cam_v4l2_device *pcam, int idx)
 	struct msm_ctrl_cmd ctrlcmd;
 	D("%s\n", __func__);
 	ctrlcmd.type	   = MSM_V4L2_STREAM_ON;
-	ctrlcmd.timeout_ms = 10000;
+	ctrlcmd.timeout_ms = 4500;
 	ctrlcmd.length	 = 0;
 	ctrlcmd.value    = NULL;
 	ctrlcmd.stream_type = pcam->dev_inst[idx]->image_mode;
@@ -777,7 +778,7 @@ int msm_server_streamoff(struct msm_cam_v4l2_device *pcam, int idx)
 
 	D("%s, pcam = 0x%x\n", __func__, (u32)pcam);
 	ctrlcmd.type        = MSM_V4L2_STREAM_OFF;
-	ctrlcmd.timeout_ms  = 10000;
+	ctrlcmd.timeout_ms  = 4500;
 	ctrlcmd.length      = 0;
 	ctrlcmd.value       = NULL;
 	ctrlcmd.stream_type = pcam->dev_inst[idx]->image_mode;
@@ -839,7 +840,7 @@ int msm_server_proc_ctrl_cmd(struct msm_cam_v4l2_device *pcam,
 	if (tmp_cmd.timeout_ms > 0)
 		ctrlcmd.timeout_ms = tmp_cmd.timeout_ms;
 	else
-		ctrlcmd.timeout_ms = 1000;
+		ctrlcmd.timeout_ms = 3000;
 	ctrlcmd.vnode_id = pcam->vnode_id;
 	ctrlcmd.queue_idx = pcam->server_queue_idx;
 	ctrlcmd.config_ident = g_server_dev.config_info.config_dev_id[0];
@@ -892,7 +893,7 @@ int msm_server_s_ctrl(struct msm_cam_v4l2_device *pcam,
 	ctrlcmd.length = sizeof(struct v4l2_control);
 	ctrlcmd.value = (void *)ctrl_data;
 	memcpy(ctrlcmd.value, ctrl, ctrlcmd.length);
-	ctrlcmd.timeout_ms = 1000;
+	ctrlcmd.timeout_ms = 3000;
 	ctrlcmd.vnode_id = pcam->vnode_id;
 	ctrlcmd.queue_idx = pcam->server_queue_idx;
 	ctrlcmd.config_ident = g_server_dev.config_info.config_dev_id[0];
@@ -922,7 +923,7 @@ int msm_server_g_ctrl(struct msm_cam_v4l2_device *pcam,
 	ctrlcmd.length = sizeof(struct v4l2_control);
 	ctrlcmd.value = (void *)ctrl_data;
 	memcpy(ctrlcmd.value, ctrl, ctrlcmd.length);
-	ctrlcmd.timeout_ms = 1000;
+	ctrlcmd.timeout_ms = 3000;
 	ctrlcmd.vnode_id = pcam->vnode_id;
 	ctrlcmd.queue_idx = pcam->server_queue_idx;
 	ctrlcmd.config_ident = g_server_dev.config_info.config_dev_id[0];
