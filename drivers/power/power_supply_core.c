@@ -19,6 +19,7 @@
 #include <linux/power_supply.h>
 #include "power_supply.h"
 
+
 /* exported for the APM Power driver, APM emulation */
 struct class *power_supply_class;
 EXPORT_SYMBOL_GPL(power_supply_class);
@@ -134,7 +135,7 @@ static void power_supply_changed_work(struct work_struct *work)
 	unsigned long flags;
 	struct power_supply *psy = container_of(work, struct power_supply,
 						changed_work);
-
+	
 	dev_dbg(psy->dev, "%s\n", __func__);
 
 	spin_lock_irqsave(&psy->changed_lock, flags);

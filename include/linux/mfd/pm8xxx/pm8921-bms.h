@@ -134,11 +134,29 @@ struct pm8921_bms_platform_data {
 	int				ignore_shutdown_soc;
 	int				adjust_soc_low_threshold;
 	int				chg_term_ua;
+/* OPPO 2013-01-05 chendx Add begin for qualcomm patch */
+	unsigned int normal_voltage_calc_ms;
+    unsigned int low_voltage_calc_ms;
+/* OPPO 2013-01-05 chendx Add end */
 };
 
 #if defined(CONFIG_PM8921_BMS) || defined(CONFIG_PM8921_BMS_MODULE)
+/* OPPO 2012-10-10 chendx Modify begin for OPPO 2500mAh batterydata */
+#if 0
 extern struct pm8921_bms_battery_data  palladium_1500_data;
+#else
+extern struct pm8921_bms_battery_data  OPPO_palladium_2500mAh_data;	
+#endif
+/* OPPO 2012-10-10 chendx Modify end */
 extern struct pm8921_bms_battery_data  desay_5200_data;
+
+/* OPPO 2013-01-14 chendx Add begin for get bms vbatt ocv */
+int get_bms_ocv_vbatt(int ibat_ua,int vbat_uv);
+/* OPPO 2013-01-14 chendx Add end for get bms vbatt ocv */
+
+void backup_calib_soc(int calib_soc);
+int read_calib_soc(void);
+
 /**
  * pm8921_bms_get_vsense_avg - return the voltage across the sense
  *				resitor in microvolts

@@ -22,6 +22,9 @@ struct pm8xxx_charger_core_data {
 	unsigned int	vbat_channel;
 	unsigned int	batt_temp_channel;
 	unsigned int	batt_id_channel;
+	/* OPPO 2012-08-06 chendx Add begin for chg voltage */
+	unsigned int	chg_voltage_channel;
+	/* OPPO 2012-08-06 chendx Add end */
 };
 
 enum pm8921_chg_cold_thr {
@@ -55,6 +58,65 @@ enum pm8921_chg_led_src_config {
 	LED_SRC_MIN_VPH_5V,
 	LED_SRC_BYPASS,
 };
+
+/* OPPO 2012-08-07 chendx Add begin for BTM */
+typedef enum   
+{
+    /*! Battery is cold               */
+    CV_BATTERY_TEMP_REGION__COLD,
+    /*! Battery is little cold               */
+    CV_BATTERY_TEMP_REGION_LITTLE__COLD,
+    /*! Battery is cool               */
+    CV_BATTERY_TEMP_REGION__COOL,
+    /*! Battery is normal             */
+    CV_BATTERY_TEMP_REGION__NORMAL,
+    /*! Battery is warm               */
+    CV_BATTERY_TEMP_REGION__WARM,
+    /*! Battery is hot                */
+    CV_BATTERY_TEMP_REGION__HOT,
+    /*! Invalid battery temp region   */
+    CV_BATTERY_TEMP_REGION__INVALID,
+}chg_cv_battery_temp_region_type;
+/* OPPO 2012-08-07 chendx Add end */
+
+/* OPPO 2012-08-15 chendx Add begin for charger uovp */
+/*
+ * This enum contains defintions of the charger hardware status
+ */
+/*! \enum chg_charger_status
+ *	\brief This enum contains defintions of the charger hardware status
+ */
+typedef enum
+{
+	/* The charger is good		*/
+	CHARGER_STATUS_GOOD,
+	/* The charger is bad		*/
+	CHARGER_STATUS_BAD,
+	/* The charger is weakvoltage	*/
+	CHARGER_STATUS_WEAK,
+	/* The charger is overvoltage	*/
+	CHARGER_STATUS_OVER,
+	/* Invalid charger status.	*/
+	CHARGER_STATUS_INVALID
+}chg_charger_status;
+/*
+ *  This enum contains defintions of the battery status
+ */
+typedef enum
+{
+	/* The battery is good        */
+	BATTERY_STATUS_GOOD,
+	/* The battery is cold/hot    */
+	BATTERY_STATUS_BAD_TEMP,
+	/* The battery is bad         */
+	BATTERY_STATUS_BAD,
+	/* The battery is removed     */
+	BATTERY_STATUS_REMOVED,		
+	/* Invalid battery status.    */
+	BATTERY_STATUS_INVALID
+}chg_battery_status;
+
+/* OPPO 2012-08-15 chendx Add end */
 
 /**
  * struct pm8921_charger_platform_data -
@@ -129,6 +191,17 @@ struct pm8921_charger_platform_data {
 	unsigned int			min_voltage;
 	unsigned int			uvd_thresh_voltage;
 	unsigned int			resume_voltage_delta;
+/* OPPO 2012-08-07 chendx Add begin for BTM */
+	unsigned int			normal_resume_voltage_delta;
+	unsigned int			little_cold_bat_chg_current;
+	unsigned int			normal_dcp_chg_current;
+	unsigned int			normal_sdp_chg_current;
+	unsigned int			little_cold_bat_voltage;
+	unsigned int			normal_bat_voltage;
+	unsigned int 			alarm_low_mv;
+    unsigned int 			alarm_high_mv;
+    unsigned int 			resume_charge_percent;
+/* OPPO 2012-08-07 chendx Add end */
 	unsigned int			term_current;
 	int				cool_temp;
 	int				warm_temp;
@@ -155,6 +228,13 @@ struct pm8921_charger_platform_data {
 	enum pm8921_chg_hot_thr		hot_thr;
 	int				rconn_mohm;
 	enum pm8921_chg_led_src_config	led_src_config;
+	/* OPPO 2012-08-06 chendx Add begin for rsense init */
+	unsigned int			r_sense;
+	/* OPPO 2012-08-06 chendx Add end */
+	/* OPPO 2012-08-13 chendx Add begin for reason */
+    int mhl_chg_current;
+	int nonstanard_mhl_chg_current;
+	/* OPPO 2012-08-13 chendx Add end */
 };
 
 enum pm8921_charger_source {
@@ -162,6 +242,10 @@ enum pm8921_charger_source {
 	PM8921_CHG_SRC_USB,
 	PM8921_CHG_SRC_DC,
 };
+/* OPPO 2012-08-13 chendx Add begin for reason */
+int mhl_stanard_charge(void);
+
+/* OPPO 2012-08-13 chendx Add end */
 
 #if defined(CONFIG_PM8921_CHARGER) || defined(CONFIG_PM8921_CHARGER_MODULE)
 void pm8921_charger_vbus_draw(unsigned int mA);
