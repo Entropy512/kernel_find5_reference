@@ -269,6 +269,8 @@ static struct msm_camera_i2c_reg_conf imx091_recommend_settings[] = {
 	{0x321D, 0x0D},
 	/* black level setting */
 	{0x3032, 0x40},
+#endif
+/* OPPO 2012-07-19 yxq modified end */
 };
 
 static struct v4l2_subdev_info imx091_subdev_info[] = {
@@ -291,6 +293,10 @@ static struct msm_camera_i2c_conf_array imx091_confs[] = {
 	ARRAY_SIZE(imx091_snap_settings), 0, MSM_CAMERA_I2C_BYTE_DATA},
 	{&imx091_prev_settings[0],
 	ARRAY_SIZE(imx091_prev_settings), 0, MSM_CAMERA_I2C_BYTE_DATA},
+/* OPPO 2012-08-27 yxq added begin for video */
+	{&imx091_video_settings[0],
+	ARRAY_SIZE(imx091_video_settings), 0, MSM_CAMERA_I2C_BYTE_DATA},
+/* OPPO 2012-08-27 yxq added end */
 };
 
 static struct msm_sensor_output_info_t imx091_dimensions[] = {
@@ -299,7 +305,13 @@ static struct msm_sensor_output_info_t imx091_dimensions[] = {
 		.x_output = 0x1070, /* 4208 */
 		.y_output = 0x0C30, /* 3120 */
 		.line_length_pclk = 0x120C, /* 4620 */
+/* OPPO 2012-07-19 yxq modified start for new settings */
+#if 0
 		.frame_length_lines = 0x0C8C, /* 3212 */
+#else
+		.frame_length_lines = 0x0CB4, /* 3252 */
+#endif
+/* OPPO 2012-07-19 yxq modified end */
 		.vt_pixel_clk = 206400000,
 		.op_pixel_clk = 206400000,
 		.binning_factor = 1,
@@ -318,6 +330,18 @@ static struct msm_sensor_output_info_t imx091_dimensions[] = {
 		.op_pixel_clk = 225600000,
 		.binning_factor = 1,
 	},
+/* OPPO 2012-08-27 yxq added begin for video */
+	{
+	/* 30 fps full HD */
+		.x_output = 0x079C, /* 1948 */
+		.y_output = 0x0448, /* 1096 */
+		.line_length_pclk = 0x120C, /* 4620 */
+		.frame_length_lines = 0x065A, /* 1626 */
+		.vt_pixel_clk = 225600000,
+		.op_pixel_clk = 225600000,
+		.binning_factor = 1,
+	},
+/* OPPO 2012-08-27 yxq added end */
 };
 
 static struct msm_camera_csid_vc_cfg imx091_cid_cfg[] = {
@@ -439,7 +463,13 @@ static struct msm_sensor_reg_t imx091_regs = {
 static struct msm_sensor_ctrl_t imx091_s_ctrl = {
 	.msm_sensor_reg = &imx091_regs,
 	.sensor_i2c_client = &imx091_sensor_i2c_client,
+/* OPPO 2012-08-06 yxq modified begin for imx091 */
+#if 0
 	.sensor_i2c_addr = 0x34,
+#else
+	.sensor_i2c_addr = 0x20,
+#endif
+/* OPPO 2012-08-06 yxq modified end */
 	.sensor_output_reg_addr = &imx091_reg_addr,
 	.sensor_id_info = &imx091_id_info,
 	.sensor_exp_gain_info = &imx091_exp_gain_info,
