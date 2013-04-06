@@ -264,6 +264,11 @@ static void adreno_iommu_setstate(struct kgsl_device *device,
 					unsigned int context_id,
 					uint32_t flags)
 {
+//2012-11-29, liuyan kgsl patch begin
+#ifndef CONFIG_KGSL_PER_PROCESS_PAGE_TABLE	
+	return kgsl_mmu_device_setstate(&device->mmu, flags);
+#else
+//2012-11-29, liuyan kgsl patch end
 	unsigned int pt_val, reg_pt_val;
 	unsigned int link[200];
 	unsigned int *cmds = &link[0];
@@ -407,6 +412,7 @@ static void adreno_iommu_setstate(struct kgsl_device *device,
 done:
 	if (num_iommu_units)
 		kfree(reg_map_array);
+#endif /* CONFIG_KGSL_PER_PROCESS_PAGE_TABLE */
 }
 
 static void adreno_gpummu_setstate(struct kgsl_device *device,
