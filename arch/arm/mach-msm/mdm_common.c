@@ -160,6 +160,14 @@ static void mdm2ap_status_check(struct work_struct *work)
 	}
 }
 
+//#ifdef VENDOR_EDIT
+//WuJinping@OnlineRD.AirService.Phone 2013.1.20, Add for modem subsystem restart when no service
+void oppo_restart_modem(void)
+{
+		//mdm_drv->mdm_ready = 0;
+		subsystem_restart(EXTERNAL_MODEM);
+}
+//#endif /* VENDOR_EDIT */
 static DECLARE_DELAYED_WORK(mdm2ap_status_check_work, mdm2ap_status_check);
 
 long mdm_modem_ioctl(struct file *filp, unsigned int cmd,
@@ -240,6 +248,23 @@ long mdm_modem_ioctl(struct file *filp, unsigned int cmd,
 		else
 			put_user(0, (unsigned long __user *) arg);
 		break;
+	#ifdef CONFIG_VENDOR_EDIT
+	/* DuYuanHua@OnLineRD.AirService.MDM, 2012/12/04, Add for CR401598 Communicate MDM A5 thru' SYSMON */
+	case SHUTDOWN_CHARM:
+		pr_info("%s: SHUTDOWN_CHARM, send_shdn = %d\n",
+			   __func__,  mdm_drv->pdata->send_shdn);
+		
+		if (!mdm_drv->pdata->send_shdn)
+			break;
+		mdm_drv->mdm_ready = 0;
+		if (mdm_debug_mask & MDM_DEBUG_MASK_SHDN_LOG)
+			pr_info("Sending shutdown request to mdm\n");
+		ret = sysmon_send_shutdown(SYSMON_SS_EXT_MODEM);
+		if (ret)
+			pr_err("%s: Graceful shutdown of the external modem failed, ret = %d\n",
+				   __func__, ret);
+		break;
+	#endif /* CONFIG_VENDOR_EDIT */
 	default:
 		pr_err("%s: invalid ioctl cmd = %d\n", __func__, _IOC_NR(cmd));
 		ret = -EINVAL;
@@ -329,6 +354,12 @@ static irqreturn_t mdm_status_change(int irq, void *dev_id)
 {
 	int value = gpio_get_value(mdm_drv->mdm2ap_status_gpio);
 
+	#ifdef CONFIG_VENDOR_EDIT
+	/* DuYuanHua@OnLineRD.AirService.MDM, 2012/12/04, Add for CR401598 Communicate MDM A5 thru' SYSMON */	
+	//if ((mdm_debug_mask & MDM_DEBUG_MASK_SHDN_LOG) && (value == 0))
+	//	pr_info("%s: mdm2ap_status went low\n", __func__);
+	#endif /* CONFIG_VENDOR_EDIT */
+	
 	pr_debug("%s: mdm sent status change interrupt\n", __func__);
 	if (value == 0 && mdm_drv->mdm_ready == 1) {
 		pr_info("%s: unexpected reset external modem\n", __func__);
@@ -620,7 +651,9 @@ int mdm_common_create(struct platform_device  *pdev,
 		goto errfatal_err;
 	}
 	mdm_drv->mdm_errfatal_irq = irq;
-
+/* OPPO 2013-01-25 zhenwx Add begin for enable modem err fatal signal wakeup AP */
+	enable_irq_wake(irq);	
+/* OPPO 2013-01-25 zhenwx Add end */
 errfatal_err:
 
 	/* status irq */

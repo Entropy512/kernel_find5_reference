@@ -113,8 +113,20 @@ static void mdm_power_down_common(struct mdm_modem_drv *mdm_drv)
 
 	/* Wait for the modem to complete its power down actions. */
 	for (i = 20; i > 0; i--) {
+		
+		#ifndef CONFIG_VENDOR_EDIT	
+		/* DuYuanHua@OnLineRD.AirService.MDM, 2012/12/04, Modify for shutting down MDM slow issue */
 		if (gpio_get_value(mdm_drv->mdm2ap_status_gpio) == 0)
 			break;
+		#else
+		
+		if (gpio_get_value(mdm_drv->mdm2ap_status_gpio) == 0) {
+			if (mdm_debug_mask & MDM_DEBUG_MASK_SHDN_LOG)
+				pr_info("%s: mdm2ap_status went low, i = %d\n",
+					__func__, i);
+			break;
+		}
+		#endif /* CONFIG_VENDOR_EDIT */
 		msleep(100);
 	}
 	if (i == 0) {
@@ -266,6 +278,7 @@ static int __init mdm_modem_probe(struct platform_device *pdev)
 
 static int __devexit mdm_modem_remove(struct platform_device *pdev)
 {
+
 	return mdm_common_modem_remove(pdev);
 }
 

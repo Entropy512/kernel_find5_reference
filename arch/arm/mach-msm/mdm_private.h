@@ -14,6 +14,12 @@
 #define _ARCH_ARM_MACH_MSM_MDM_PRIVATE_H
 
 #define MDM_DEBUG_MASK_VDDMIN_SETUP (0x00000002)
+
+#ifdef CONFIG_VENDOR_EDIT
+/* DuYuanHua@OnLineRD.AirService.MDM, 2012/12/04, Add for CR401598 Communicate MDM A5 thru' SYSMON */
+#define MDM_DEBUG_MASK_SHDN_LOG     (0x00000004)
+#endif
+
 struct mdm_modem_drv;
 
 struct mdm_ops {
