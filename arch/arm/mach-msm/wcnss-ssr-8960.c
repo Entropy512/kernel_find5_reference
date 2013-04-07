@@ -59,6 +59,11 @@ static void smsm_state_cb_hdlr(void *data, uint32_t old_state,
 		return;
 	}
 
+#ifdef CONFIG_MACH_OPPO_FIND5
+	pr_err("WCNSS3660 restart independent-\n");
+	enable_riva_ssr = 1 ;
+#endif
+
 	if (!enable_riva_ssr)
 		panic(MODULE_NAME ": SMSM reset request received from Riva");
 

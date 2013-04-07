@@ -35,6 +35,12 @@
 #include "msm_watchdog.h"
 #include "timer.h"
 
+#ifdef CONFIG_MACH_OPPO_FIND5
+#include <linux/gpio.h>
+
+#define mdm_drv_ap2mdm_pmic_pwr_en_gpio  27
+#endif
+
 #define WDT0_RST	0x38
 #define WDT0_EN		0x40
 #define WDT0_BARK_TIME	0x4C
@@ -66,7 +72,11 @@ static void *dload_mode_addr;
 
 /* Download mode master kill-switch */
 static int dload_set(const char *val, struct kernel_param *kp);
+#ifndef CONFIG_MACH_OPPO_FIND5
 static int download_mode = 1;
+#else
+static int download_mode = 0;
+#endif
 module_param_call(download_mode, dload_set, param_get_int,
 			&download_mode, 0644);
 
@@ -235,6 +245,25 @@ void set_kernel_crash_magic_number(void)
 void msm_restart(char mode, const char *cmd)
 {
 
+#ifdef CONFIG_MACH_OPPO_FIND5
+	if (cmd != NULL) {
+		if (!strncmp(cmd, "reboot_off", 10)) 
+			{
+			printk(KERN_NOTICE "reboot_off power off modem\n");
+			gpio_direction_output(mdm_drv_ap2mdm_pmic_pwr_en_gpio, 0);
+			mdelay(4000);
+			msm_power_off();
+			}
+		}
+
+
+	if (system_state == SYSTEM_POWER_OFF)
+	{
+		printk(KERN_NOTICE "system_state power off, cancel restart\n");
+		msm_power_off();
+	}
+#endif
+
 #ifdef CONFIG_MSM_DLOAD_MODE
 
 	/* This looks like a normal reboot at this point. */
@@ -335,6 +364,9 @@ static int __init msm_restart_init(void)
 #endif
 	msm_tmr0_base = msm_timer_get_timer0_base();
 	restart_reason = MSM_IMEM_BASE + RESTART_REASON_ADDR;
+#ifdef CONFIG_MACH_OPPO_FIND5
+	__raw_writel(0x7766550a, restart_reason);
+#endif
 	pm_power_off = msm_power_off;
 
 	return 0;

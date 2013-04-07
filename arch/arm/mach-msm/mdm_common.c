@@ -327,6 +327,15 @@ static void mdm2ap_status_check(struct work_struct *work)
 	}
 }
 
+#ifdef CONFIG_MACH_OPPO_FIND5
+//WuJinping@OnlineRD.AirService.Phone 2013.1.20, Add for modem subsystem restart when no service
+void oppo_restart_modem(void)
+{
+		//mdm_drv->mdm_ready = 0;
+		subsystem_restart(EXTERNAL_MODEM);
+}
+#endif /* CONFIG_MACH_OPPO_FIND5 */
+
 static void mdm_update_gpio_configs(struct mdm_device *mdev,
 				enum gpio_update_config gpio_config)
 {
@@ -982,6 +991,9 @@ static int mdm_configure_ipc(struct mdm_device *mdev)
 	}
 	mdev->mdm_errfatal_irq = irq;
 
+#ifdef CONFIG_MACH_OPPO_FIND5
+	enable_irq_wake(irq);
+#endif
 errfatal_err:
 
 	 /* status irq */
