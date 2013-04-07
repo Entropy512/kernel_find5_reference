@@ -2289,6 +2289,24 @@ static void mdp_drv_init(void)
 #endif
 }
 
+#ifdef CONFIG_MACH_OPPO_FIND5
+#ifdef SPLASH_SCREEN_BUFFER_FOR_1080P
+struct disp_logo_buffer {
+	dma_addr_t phys;
+	void       *data;
+	uint32_t   used;
+	uint32_t   size;/* size of buffer */
+	struct ion_handle *handle;
+	struct ion_client *client;
+};
+
+struct disp_logo_buffer logo_buffer;
+
+static void free_boot_logo_copy_buffer(void);
+static int alloc_boot_logo_copy_buffer(unsigned int bufsz);
+#endif
+#endif
+
 static int mdp_probe(struct platform_device *pdev);
 static int mdp_remove(struct platform_device *pdev);
 
@@ -2724,6 +2742,86 @@ static int mdp_irq_clk_setup(struct platform_device *pdev,
 	}
 	return 0;
 }
+
+#ifdef CONFIG_MACH_OPPO_FIND5
+#ifdef SPLASH_SCREEN_BUFFER_FOR_1080P
+static void free_boot_logo_copy_buffer(void)
+{
+	pr_debug("%s++\n", __func__);
+
+	if (logo_buffer.data) {
+		logo_buffer.used = 0;
+		ion_unmap_kernel(logo_buffer.client, logo_buffer.handle);
+		ion_free(logo_buffer.client, logo_buffer.handle);
+		ion_client_destroy(logo_buffer.client);
+		pr_debug("%s:data[%p]phys[%p][%p], client[%p] handle[%p]\n",
+			__func__,
+			(void *)logo_buffer.data,
+			(void *)logo_buffer.phys,
+			(void *)&logo_buffer.phys,
+			(void *)logo_buffer.client,
+			(void *)logo_buffer.handle);
+	}
+
+		logo_buffer.data = NULL;
+		logo_buffer.phys = 0;
+	pr_debug("%s--\n", __func__);
+	return;
+}
+
+static int alloc_boot_logo_copy_buffer(unsigned int bufsz)
+{
+	int rc = 0;
+	int len = 0;
+
+	pr_debug("alloc_boot_logo_copy_buffer++\n");
+	logo_buffer.client =
+		 msm_ion_client_create(UINT_MAX, "boot_logo_copy_client");
+	if (IS_ERR_OR_NULL((void *)logo_buffer.client)) {
+		pr_err("%s: ION create client for boot_logo_copy failed\n",
+			 __func__);
+		goto fail;
+	}
+	logo_buffer.handle = ion_alloc(logo_buffer.client, bufsz * 1, SZ_4K,
+				  ION_HEAP(ION_QSECOM_HEAP_ID));
+	if (IS_ERR_OR_NULL((void *) logo_buffer.handle)) {
+		pr_err("%s: ION memory allocation for boot_logo_copy failed\n",
+			__func__);
+		goto fail;
+	}
+
+	rc = ion_phys(logo_buffer.client, logo_buffer.handle,
+		  (ion_phys_addr_t *)&logo_buffer.phys, (size_t *)&len);
+	if (rc) {
+		pr_err("%s: ION Get Phys for boot_logo_copy failed, rc = %d\n",
+			__func__, rc);
+		goto fail;
+	}
+
+	logo_buffer.data = ion_map_kernel(logo_buffer.client,
+				 logo_buffer.handle, 0);
+	if (IS_ERR_OR_NULL((void *) logo_buffer.data)) {
+		pr_err("%s: ION memory mapping for boot_logo_copy failed\n",
+				 __func__);
+		goto fail;
+	}
+	memset((void *)logo_buffer.data, 0, (bufsz * 1));
+	if (!logo_buffer.data) {
+		pr_err("%s:invalid vaddr, iomap failed\n", __func__);
+		goto fail;
+	}
+
+	logo_buffer.used = 1;
+
+	pr_debug("alloc_boot_logo_copy_buffer--\n");
+
+	return 0;
+fail:
+	free_boot_logo_copy_buffer();
+	return -EINVAL;
+}
+#endif
+#endif /* CONFIG_MACH_OPPO_FIND5 */
 
 static int mdp_probe(struct platform_device *pdev)
 {
