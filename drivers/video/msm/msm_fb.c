@@ -174,12 +174,143 @@ static int msm_fb_resource_initialized;
 #ifndef CONFIG_FB_BACKLIGHT
 static int lcd_backlight_registered;
 
+#ifdef CONFIG_VENDOR_EDIT
+#define	BK_LEVEL 16
+
+typedef struct
+{
+   int x;
+   int y;
+} brightmap;
+
+static const brightmap default_map[] =
+{
+   { 0,      0 },
+   { 7,     46 },
+   { 14,    58 },
+   { 21,    67 },
+   { 28,    73 },
+   { 35,    78 },
+   { 42,    82 },
+   { 49,    85 },
+   { 56,    88 },
+   { 63,    90 },
+   { 70,    92 },
+   { 76,    95 },
+   { 81,    97 },
+   { 87,    99 },
+   { 92,   101 },
+   { 98,   102 },
+   { 103,  103 },
+   { 109,  104 },
+   { 114,  105 },
+   { 120,  106 },
+   { 125,  107 },
+   { 130,  108 },
+   { 134,  109 },
+   { 139,  110 },
+   { 143,  111 },
+   { 148,  112 },
+   { 152,  113 },
+   { 157,  114 },
+   { 161,  115 },
+   { 166,  116 },
+   { 170,  117 },
+   { 179,  118 },
+   { 187,  119 },
+   { 196,  120 },
+   { 204,  121 },
+   { 213,  122 },
+   { 221,  123 },
+   { 230,  124 },
+   { 238,  125 },
+   { 247,  126 },
+   { 255,  127 }
+};
+
+static int map_liner_int32_to_int32(const brightmap *paPts, u32 nTableSize, s32 input, s32 *output)
+{
+	bool bDescending = true;
+	u32 nSearchIdx = 0;
+
+	if ((paPts == NULL) || (output == NULL))
+	{
+		return -EINVAL;
+	}
+
+	/* Check if table is descending or ascending */
+	if (nTableSize > 1)
+	{
+		if (paPts[0].x < paPts[1].x)
+		{
+			bDescending = false;
+		}
+	}
+
+	while (nSearchIdx < nTableSize)
+	{
+		if ( (bDescending == true) && (paPts[nSearchIdx].x < input) )
+		{
+			/* table entry is less than measured value and table is descending, stop */
+			break;
+		}
+		else if ( (bDescending == false) && (paPts[nSearchIdx].x > input) )
+		{
+			/* table entry is greater than measured value and table is ascending, stop */
+			break;
+		}
+		else
+		{
+			nSearchIdx++;
+		}
+	}
+
+	if (nSearchIdx == 0)
+	{
+		*output = paPts[0].y;
+	}
+	else if (nSearchIdx == nTableSize)
+	{
+		*output = paPts[nTableSize-1].y;
+	}
+	else
+	{
+		/* result is between search_index and search_index-1 */
+		/* interpolate linearly */
+		*output = (
+		       ( (s32)
+		           (
+		            (paPts[nSearchIdx].y - paPts[nSearchIdx-1].y)
+		             * (input - paPts[nSearchIdx-1].x)
+		           )
+		           / (paPts[nSearchIdx].x - paPts[nSearchIdx-1].x)
+		       )
+		       + paPts[nSearchIdx-1].y
+		     );
+	}
+   return 0;
+}
+
+static int get_bright_level(int bright)
+{
+	int level;
+	int ret;
+
+	ret = map_liner_int32_to_int32(default_map, sizeof(default_map)/sizeof(default_map[0]), bright, &level);
+	if(ret)
+		return ret;
+
+	return level;
+}
+#endif
+
 static void msm_fb_set_bl_brightness(struct led_classdev *led_cdev,
 					enum led_brightness value)
 {
 	struct msm_fb_data_type *mfd = dev_get_drvdata(led_cdev->dev->parent);
 	int bl_lvl;
 
+#ifndef CONFIG_VENDOR_EDIT
 	/* This maps android backlight level 1 to 255 into
 	   driver backlight level bl_min to bl_max with rounding
 	   and maps backlight level 0 to 0. */
@@ -192,7 +323,12 @@ static void msm_fb_set_bl_brightness(struct led_classdev *led_cdev,
 			(mfd->panel_info.bl_max - mfd->panel_info.bl_min) +
 			MAX_BACKLIGHT_BRIGHTNESS - 1) /
 			(MAX_BACKLIGHT_BRIGHTNESS - 1) / 2;
-
+#else
+	bl_lvl = get_bright_level(value);
+	if(!bl_lvl && value)
+	  bl_lvl = 1;
+#endif
+        down(&mfd->sem);
 	msm_fb_set_backlight(mfd, bl_lvl);
 }
 

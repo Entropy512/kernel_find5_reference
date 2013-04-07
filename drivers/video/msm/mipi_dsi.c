@@ -43,8 +43,13 @@ static boolean tlmm_settings = FALSE;
 static int mipi_dsi_probe(struct platform_device *pdev);
 static int mipi_dsi_remove(struct platform_device *pdev);
 
+#ifndef CONFIG_VENDOR_EDIT
 static int mipi_dsi_off(struct platform_device *pdev);
 static int mipi_dsi_on(struct platform_device *pdev);
+#else
+int mipi_dsi_off(struct platform_device *pdev);
+int mipi_dsi_on(struct platform_device *pdev);
+#endif
 
 static struct platform_device *pdev_list[MSM_FB_MAX_DEV_LIST];
 static int pdev_list_cnt;
@@ -63,7 +68,11 @@ static struct platform_driver mipi_dsi_driver = {
 
 struct device dsi_dev;
 
+#ifndef CONFIG_VENDOR_EDIT
 static int mipi_dsi_off(struct platform_device *pdev)
+#else
+int mipi_dsi_off(struct platform_device *pdev)
+#endif
 {
 	int ret = 0;
 	struct msm_fb_data_type *mfd;
@@ -134,7 +143,11 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	return ret;
 }
 
+#ifndef CONFIG_VENDOR_EDIT
 static int mipi_dsi_on(struct platform_device *pdev)
+#else
+int mipi_dsi_on(struct platform_device *pdev)
+#endif
 {
 	int ret = 0;
 	u32 clk_rate;
@@ -328,6 +341,10 @@ static int mipi_dsi_on(struct platform_device *pdev)
 
 static int mipi_dsi_resource_initialized;
 
+#ifdef CONFIG_VENDOR_EDIT
+struct platform_device *g_mdp_dev = NULL;
+#endif
+
 static int mipi_dsi_probe(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
@@ -450,6 +467,10 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	mdp_dev = platform_device_alloc("mdp", pdev->id);
 	if (!mdp_dev)
 		return -ENOMEM;
+
+#ifdef CONFIG_VENDOR_EDIT
+	g_mdp_dev = mdp_dev;
+#endif
 
 	/*
 	 * link to the latest pdev
