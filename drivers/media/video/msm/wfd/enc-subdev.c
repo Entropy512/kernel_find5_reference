@@ -2157,8 +2157,12 @@ static long venc_free_recon_buffers(struct v4l2_subdev *sd, void *arg)
 			&vcd_property_hdr, &client_ctx->recon_buffer[i]);
 			if (rc)
 				WFD_MSG_ERR("Failed to free recon buffer\n");
-
+			
+	#ifdef CONFIG_VENDOR_EDIT //liuhd add for wfd crash
+			if (!IS_ERR_OR_NULL(
+	#else
 			if (IS_ERR_OR_NULL(
+	#endif
 				client_ctx->recon_buffer_ion_handle[i])) {
 				if (!inst->secure) {
 					ion_unmap_iommu(
