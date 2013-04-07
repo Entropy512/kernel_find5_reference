@@ -2289,6 +2289,24 @@ static void mdp_drv_init(void)
 #endif
 }
 
+#ifdef CONFIG_MACH_OPPO_FIND5
+#ifdef SPLASH_SCREEN_BUFFER_FOR_1080P
+struct disp_logo_buffer {
+	dma_addr_t phys;
+	void       *data;
+	uint32_t   used;
+	uint32_t   size;/* size of buffer */
+	struct ion_handle *handle;
+	struct ion_client *client;
+};
+
+struct disp_logo_buffer logo_buffer;
+
+static void free_boot_logo_copy_buffer(void);
+static int alloc_boot_logo_copy_buffer(unsigned int bufsz);
+#endif
+#endif
+
 static int mdp_probe(struct platform_device *pdev);
 static int mdp_remove(struct platform_device *pdev);
 
@@ -2765,6 +2783,86 @@ static int mdp_irq_clk_setup(struct platform_device *pdev,
 	return 0;
 }
 
+#ifdef CONFIG_MACH_OPPO_FIND5
+#ifdef SPLASH_SCREEN_BUFFER_FOR_1080P
+static void free_boot_logo_copy_buffer(void)
+{
+	pr_debug("%s++\n", __func__);
+
+	if (logo_buffer.data) {
+		logo_buffer.used = 0;
+		ion_unmap_kernel(logo_buffer.client, logo_buffer.handle);
+		ion_free(logo_buffer.client, logo_buffer.handle);
+		ion_client_destroy(logo_buffer.client);
+		pr_debug("%s:data[%p]phys[%p][%p], client[%p] handle[%p]\n",
+			__func__,
+			(void *)logo_buffer.data,
+			(void *)logo_buffer.phys,
+			(void *)&logo_buffer.phys,
+			(void *)logo_buffer.client,
+			(void *)logo_buffer.handle);
+	}
+
+		logo_buffer.data = NULL;
+		logo_buffer.phys = 0;
+	pr_debug("%s--\n", __func__);
+	return;
+}
+
+static int alloc_boot_logo_copy_buffer(unsigned int bufsz)
+{
+	int rc = 0;
+	int len = 0;
+
+	pr_debug("alloc_boot_logo_copy_buffer++\n");
+	logo_buffer.client =
+		 msm_ion_client_create(UINT_MAX, "boot_logo_copy_client");
+	if (IS_ERR_OR_NULL((void *)logo_buffer.client)) {
+		pr_err("%s: ION create client for boot_logo_copy failed\n",
+			 __func__);
+		goto fail;
+	}
+	logo_buffer.handle = ion_alloc(logo_buffer.client, bufsz * 1, SZ_4K,
+				       ION_HEAP(ION_QSECOM_HEAP_ID),0);
+	if (IS_ERR_OR_NULL((void *) logo_buffer.handle)) {
+		pr_err("%s: ION memory allocation for boot_logo_copy failed\n",
+			__func__);
+		goto fail;
+	}
+
+	rc = ion_phys(logo_buffer.client, logo_buffer.handle,
+		  (ion_phys_addr_t *)&logo_buffer.phys, (size_t *)&len);
+	if (rc) {
+		pr_err("%s: ION Get Phys for boot_logo_copy failed, rc = %d\n",
+			__func__, rc);
+		goto fail;
+	}
+
+	logo_buffer.data = ion_map_kernel(logo_buffer.client,
+				 logo_buffer.handle);
+	if (IS_ERR_OR_NULL((void *) logo_buffer.data)) {
+		pr_err("%s: ION memory mapping for boot_logo_copy failed\n",
+				 __func__);
+		goto fail;
+	}
+	memset((void *)logo_buffer.data, 0, (bufsz * 1));
+	if (!logo_buffer.data) {
+		pr_err("%s:invalid vaddr, iomap failed\n", __func__);
+		goto fail;
+	}
+
+	logo_buffer.used = 1;
+
+	pr_debug("alloc_boot_logo_copy_buffer--\n");
+
+	return 0;
+fail:
+	free_boot_logo_copy_buffer();
+	return -EINVAL;
+}
+#endif
+#endif /* CONFIG_MACH_OPPO_FIND5 */
+
 static int mdp_probe(struct platform_device *pdev)
 {
 	struct platform_device *msm_fb_dev = NULL;
@@ -2829,6 +2927,7 @@ static int mdp_probe(struct platform_device *pdev)
 #ifdef CONFIG_FB_MSM_OVERLAY
 		mdp_hw_cursor_init();
 #endif
+
 		mdp_resource_initialized = 1;
 		return 0;
 	}
@@ -2907,11 +3006,25 @@ static int mdp_probe(struct platform_device *pdev)
 			mdp_pdata->splash_screen_addr =
 				inpdw(MDP_BASE + 0x90008);
 
+#ifdef SPLASH_SCREEN_BUFFER_FOR_1080P
+			if (alloc_boot_logo_copy_buffer
+			    (mdp_pdata->splash_screen_size))
+			  pr_err("BUFFER ALLOC FAILED for SPLASH\n");
+			else
+			  pr_debug("BUFFER ALLOC Sucessfully done for SPLASH\n");
+	
+			if (logo_buffer.used == 1) {
+			  mfd->copy_splash_phys =
+			    logo_buffer.phys;
+			  mfd->copy_splash_buf =
+			    logo_buffer.data;
+			}	
+#else
 			mfd->copy_splash_buf = dma_alloc_coherent(NULL,
 					mdp_pdata->splash_screen_size,
 					(dma_addr_t *) &(mfd->copy_splash_phys),
 					GFP_KERNEL);
-
+#endif
 			if (!mfd->copy_splash_buf) {
 				pr_err("DMA ALLOC FAILED for SPLASH\n");
 				return -ENOMEM;
@@ -3331,10 +3444,13 @@ void mdp_footswitch_ctrl(boolean on)
 void mdp_free_splash_buffer(struct msm_fb_data_type *mfd)
 {
 	if (mfd->copy_splash_buf) {
+#ifdef SPLASH_SCREEN_BUFFER_FOR_1080P
+	  free_boot_logo_copy_buffer();
+#else
 		dma_free_coherent(NULL,	mdp_pdata->splash_screen_size,
 			mfd->copy_splash_buf,
 			(dma_addr_t) mfd->copy_splash_phys);
-
+#endif
 		mfd->copy_splash_buf = NULL;
 	}
 }
