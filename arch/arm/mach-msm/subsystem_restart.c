@@ -480,6 +480,16 @@ int subsystem_restart_dev(struct subsys_device *dev)
 }
 EXPORT_SYMBOL(subsystem_restart_dev);
 
+#ifdef CONFIG_MACH_OPPO_FIND5
+extern void set_need_pin_process_flag(int flag);
+extern int get_sim_status(void);
+int modem_reset_num = 0;
+int get_modem_reset_num(void)
+{
+	return modem_reset_num;
+}
+#endif
+
 int subsystem_restart(const char *name)
 {
 	struct subsys_device *dev;
@@ -491,6 +501,16 @@ int subsystem_restart(const char *name)
 	dev = NULL;
 found:
 	mutex_unlock(&subsystem_list_lock);
+#ifdef CONFIG_MACH_OPPO_FIND5
+	if(!strncmp("external_modem", name,SUBSYS_NAME_MAX_LENGTH))
+	{
+		modem_reset_num++;
+		if(get_sim_status() == 1)
+		{
+			set_need_pin_process_flag(1);
+		}
+	}
+#endif
 	if (dev)
 		return subsystem_restart_dev(dev);
 	return -ENODEV;
@@ -598,7 +618,11 @@ static int __init ssr_init_soc_restart_orders(void)
 
 static int __init subsys_restart_init(void)
 {
+#ifndef CONFIG_MACH_OPPO_FIND5
 	restart_level = RESET_SOC;
+#else
+	restart_level = RESET_SUBSYS_COUPLED;
+#endif
 
 	ssr_wq = alloc_workqueue("ssr_wq", WQ_CPU_INTENSIVE, 0);
 	if (!ssr_wq)

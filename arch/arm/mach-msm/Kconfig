@@ -896,6 +896,19 @@ config MACH_MPQ8064_DTV
 	help
 	  Support for the Qualcomm MPQ8064 DTV device.
 
+config VENDOR_EDIT
+        bool "Oppo Find 5 Vendor Edits"
+        help
+          Oppo Find 5 related edits throughout the kernel tree
+          that have not yet been #ifdefed for MACH_OPPO_FIND5
+
+config MACH_OPPO_FIND5
+        depends on ARCH_APQ8064
+	select VENDOR_EDIT
+        bool "Oppo Find 5"
+        help
+          Support for the Oppo Find 5 device.
+
 config MACH_FSM9XXX_SURF
 	depends on ARCH_FSM9XXX
 	depends on !MSM_STACKED_MEMORY

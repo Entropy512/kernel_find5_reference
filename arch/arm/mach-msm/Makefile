@@ -305,6 +305,10 @@ obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire-keypad.o board-sapphire-panel.o
 obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire-mmc.o board-sapphire-wifi.o
 obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire-rfkill.o msm_vibrator.o
 
+board-find5-all-objs += board-find5.o board-find5-pmic.o board-8064-storage.o board-find5-gpiomux.o board-find5-camera.o board-find5-display.o board-8064-gpu.o
+
+obj-$(CONFIG_MACH_OPPO_FIND5) += board-find5-all.o board-find5-regulator.o bms-batterydata-find5.o
+
 obj-$(CONFIG_MACH_LGE) += lge/
 
 CFLAGS_msm_vibrator.o += -Idrivers/staging/android
