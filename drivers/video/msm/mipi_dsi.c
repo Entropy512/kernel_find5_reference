@@ -43,8 +43,13 @@ static boolean tlmm_settings = FALSE;
 static int mipi_dsi_probe(struct platform_device *pdev);
 static int mipi_dsi_remove(struct platform_device *pdev);
 
+#ifndef CONFIG_MACH_OPPO_FIND5
 static int mipi_dsi_off(struct platform_device *pdev);
 static int mipi_dsi_on(struct platform_device *pdev);
+#else
+int mipi_dsi_off(struct platform_device *pdev);
+int mipi_dsi_on(struct platform_device *pdev);
+#endif
 static int mipi_dsi_fps_level_change(struct platform_device *pdev,
 					u32 fps_level);
 
@@ -73,7 +78,11 @@ static int mipi_dsi_fps_level_change(struct platform_device *pdev,
 	return 0;
 }
 
+#ifndef CONFIG_MACH_OPPO_FIND5
 static int mipi_dsi_off(struct platform_device *pdev)
+#else
+int mipi_dsi_off(struct platform_device *pdev)
+#endif
 {
 	int ret = 0;
 	struct msm_fb_data_type *mfd;
@@ -142,7 +151,11 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	return ret;
 }
 
+#ifdef CONFIG_MACH_OPPO_FIND5
 static int mipi_dsi_on(struct platform_device *pdev)
+#else
+int mipi_dsi_on(struct platform_device *pdev)
+#endif
 {
 	int ret = 0;
 	u32 clk_rate;
@@ -345,6 +358,10 @@ static int mipi_dsi_late_init(struct platform_device *pdev)
 
 static int mipi_dsi_resource_initialized;
 
+#ifdef CONFIG_MACH_OPPO_FIND5
+struct platform_device *g_mdp_dev = NULL;
+#endif
+
 static int mipi_dsi_probe(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
@@ -466,6 +483,10 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	mdp_dev = platform_device_alloc("mdp", pdev->id);
 	if (!mdp_dev)
 		return -ENOMEM;
+
+#ifdef CONFIG_MACH_OPPO_FIND5
+	g_mdp_dev = mdp_dev;
+#endif
 
 	/*
 	 * link to the latest pdev

@@ -85,10 +85,12 @@ static int __init mipi_cmd_orise_720p_pt_init(void)
 	pinfo.mipi.wr_mem_start = 0x2c;
 	pinfo.mipi.dsi_phy_db = &dsi_cmd_mode_phy_db;
 
+#ifndef CONFIG_MACH_OPPO_FIND5
 	ret = mipi_orise_device_register(&pinfo, MIPI_DSI_PRIM,
 						MIPI_DSI_PANEL_720P_PT);
 	if (ret)
 		pr_err("%s: failed to register device!\n", __func__);
+#endif
 
 	return ret;
 }
