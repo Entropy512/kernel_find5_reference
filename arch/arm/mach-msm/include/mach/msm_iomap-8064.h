@@ -111,7 +111,11 @@
 #ifdef CONFIG_MACH_APQ8064_MAKO
 #define MSM_DEBUG_UART_PHYS		0x16340000
 #else
+#ifdef CONFIG_MACH_OPPO_FIND5
+#define MSM_DEBUG_UART_PHYS		0x1A240000
+#else
 #define MSM_DEBUG_UART_PHYS		0x16640000
+#endif
 #endif
 #endif
 
