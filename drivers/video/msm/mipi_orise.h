@@ -15,7 +15,13 @@
 #ifndef MIPI_ORISE_H
 #define MIPI_ORISE_H
 
+#ifndef CONFIG_MACH_OPPO_FIND5
 int mipi_orise_device_register(struct msm_panel_info *pinfo,
 					u32 channel, u32 panel);
-
+#else
+int mipi_orise_device_register_1080p(struct msm_panel_info *pinfo,
+					u32 channel, u32 panel);
+int mipi_orise_device_register_720p(struct msm_panel_info *pinfo,
+					u32 channel, u32 panel);
+#endif
 #endif  /* MIPI_ORISE_H */
