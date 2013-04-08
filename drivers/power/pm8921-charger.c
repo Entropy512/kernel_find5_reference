@@ -117,8 +117,25 @@
 /*batt capacity calibrate*/
 #define BATT_CAPACITY_CALIB
 
+/* Add begin for FTM CHARGER MODE */
+#define FTM_CHARGE_MODE_FEATURE
+#ifdef FTM_CHARGE_MODE_FEATURE
+#define FTM_LOW_CAPACITY_LEVEL 60
+#define FTM_HIGH_CAPACITY_LEVEL 80
+#endif
+
 /*Add begin for temperature charge test */
 #define DEFAULT_BATT_CAPACITY 30
+
+#define TEMPERATURE_CHARGE_TEST_FEATURE
+#ifdef TEMPERATURE_CHARGE_TEST_FEATURE
+#define DEFAULT_COLD_TEMP -13
+#define DEFAULT_LITTLE_COLD_TEMP -5
+#define DEFAULT_COOL_TEMP 5
+#define DEFAULT_NORMAL_TEMP 23
+#define DEFAULT_WARM_TEMP 50
+#define DEFAULT_HOT_TEMP 60
+#endif
 
 /* Define for btm battery temperate get from BTM gague precison 1C*/
 #define AUTO_CHARGING_BATT_TEMP_T0                           -10 
@@ -295,9 +312,9 @@ struct bms_notify {
  * @resume_voltage_delta:	the voltage delta from vdd max at which the
  *				battery should resume charging
  * @term_current:		The charging based term current
- *
  * @charge_is_finished: 	charge is finished flag,only reset when 
  *                                charger connect or disconnect
+ * @ftm_test_mode: RF WIFI AT FTM TEST MODE 
  */
 struct pm8921_chg_chip {
 	struct device			*dev;
@@ -323,6 +340,13 @@ struct pm8921_chg_chip {
 	unsigned int			normal_resume_voltage_delta;
 	/* OPPO 2012-08-07 chendx Add begin for oppo charge */
 	#ifdef CONFIG_VENDOR_EDIT
+	/*add for BTM */
+	#ifdef FTM_CHARGE_MODE_FEATURE
+	bool 	low_charge_mode; //60% stop charge
+    bool 	high_charge_mode; //80% stop charge
+    #endif
+	bool	ftm_test_mode;
+	bool chg_temp_test_mode;
 	/* battery temp relative value */
 	chg_cv_battery_temp_region_type mBatteryTempRegion;
 	short 	mBatteryTempBoundT0;
@@ -358,6 +382,10 @@ struct pm8921_chg_chip {
 	struct wake_lock pm8921_wake_lock;
 	#endif
 
+	#ifdef TEMPERATURE_CHARGE_TEST_FEATURE
+	int chg_test_temp;  /* in celsius */
+    #endif
+	
 	int soc_charge_counter;
 	int soc_fall_status;
 	int ocv_shutdown_counter;
@@ -2170,6 +2198,7 @@ static int pm_power_get_property_mains(struct power_supply *psy,
 				  enum power_supply_property psp,
 				  union power_supply_propval *val)
 {
+
 	/* Check if called before init */
 	if (!the_chip)
 		return -EINVAL;
@@ -2455,6 +2484,13 @@ static int get_prop_batt_capacity(struct pm8921_chg_chip *chip)
 		return DEFAULT_BATT_CAPACITY;
     }
 	
+	/* Add begin for RF WIFI AT factory TEST */
+	if(chip->ftm_test_mode == true){
+		percent_soc = DEFAULT_BATT_CAPACITY;
+		chip->recent_reported_soc = percent_soc;
+		return percent_soc;
+	}
+
     /*first report soc init
        XXXX init chip->recent_reported_soc*/
 	if(!reported_soc_init)
@@ -2621,6 +2657,10 @@ static int get_prop_batt_temp(struct pm8921_chg_chip *chip)
 					chip->vbat_channel, rc);
 		return rc;
 	}
+	
+/* OPPO 2012-10-19 chendx Modify begin for battery temperature */
+#ifndef CONFIG_VENDOR_EDIT
+
 	pr_debug("batt_temp phy = %lld meas = 0x%llx\n", result.physical,
 						result.measurement);
 	if (result.physical > MAX_TOLERABLE_BATT_TEMP_DDC)
@@ -2628,6 +2668,24 @@ static int get_prop_batt_temp(struct pm8921_chg_chip *chip)
 							(int) result.physical);
 
 	return (int)result.physical;
+#else
+    #ifdef TEMPERATURE_CHARGE_TEST_FEATURE
+    /*Use to  charge temperature test*/
+    if(chip->chg_temp_test_mode == true)
+    {
+       chip->battery_temp = chip->chg_test_temp;
+       return chip->chg_test_temp *10;
+    }
+	#endif
+	pr_debug("batt_temp phy = %lld meas = 0x%llx\n", result.physical,
+						result.measurement);
+    if (result.physical > MAX_TOLERABLE_BATT_TEMP_DDC)
+		pr_err("BATT_TEMP= %d > 68degC, device will be shutdown\n",
+						(int) result.physical);
+	chip->battery_temp = (int)result.physical/10;
+    return (int)result.physical;
+#endif
+/* OPPO 2012-10-19 chendx Modify end */
 }
 
 static int pm_batt_power_get_property(struct power_supply *psy,
@@ -5501,6 +5559,22 @@ static void eoc_worker(struct work_struct *work)
 		count = 0;
 	}
 
+	/* OPPO 2012-10-19 chendx Add begin for FTM CHARGER MODE */
+	#ifdef CONFIG_VENDOR_EDIT
+    #ifdef FTM_CHARGE_MODE_FEATURE
+	if(chip->low_charge_mode == true && chip->recent_reported_soc >= FTM_LOW_CAPACITY_LEVEL){
+		pr_info("%s: Warning charge on FTM mode, charge to 60 finish charge,=%d\n",
+				__func__,chip->low_charge_mode);
+		count = CONSECUTIVE_COUNT;		
+	}else if(chip->high_charge_mode == true && chip->recent_reported_soc >= FTM_HIGH_CAPACITY_LEVEL){
+	    pr_info("%s: Warning charge on FTM mode, charge to 80 finish charge,=%d\n",
+				__func__,chip->high_charge_mode);
+		count = CONSECUTIVE_COUNT;
+	}
+	#endif
+	#endif
+	/* OPPO 2012-10-19 chendx Add end */
+	
 	if (count == CONSECUTIVE_COUNT) {
 		count = 0;
 		pr_info("End of Charging\n");
@@ -5557,7 +5631,6 @@ static void eoc_worker(struct work_struct *work)
 						     (EOC_CHECK_PERIOD_MS)));
 	}
 }
-
 static void btm_configure_work(struct work_struct *work)
 {
 	int rc;
@@ -6531,6 +6604,84 @@ static ssize_t pm8921_suspend_mode_store(struct device *dev,
 	return size;
 }
 static DEVICE_ATTR(pm8921_suspend_mode, S_IRUGO | S_IWUSR, NULL, pm8921_suspend_mode_store);
+
+/*Add begin for FTM CHARGER MODE */
+/**
+* @path :/sys/bus/platform/devices/pm8921-charger/pm8921_chg
+*/
+#ifdef FTM_CHARGE_MODE_FEATURE
+static ssize_t pm8921_chg_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size) {
+	unsigned long val = simple_strtoul(buf, NULL, 10);
+
+	if(the_chip == NULL){
+		pr_err("%s:the chip is not init\n",__func__);
+		return size;
+	}
+	
+    /*set FTM charge mode,1. 60% stop charge,2.80% stop charge 3.normal charge*/
+	if(val == 60){
+	   pr_info("FTM CHARGER MODE: charge to capacity 60 stop mode =%ld\n",val);
+	   /*Dump pm8921 register*/
+	   __dump_pm8921_regs(the_chip);
+	   the_chip->low_charge_mode = true;
+	   return size;
+	}else if(val == 80){
+	   pr_info("FTM CHARGER MODE: charge to capacity 80 stop mode =%ld\n",val); 
+	   the_chip->high_charge_mode = true;
+	   debug_feature = 1;
+	   return size;
+	}else if(val == 11){
+	   /* FTM charge mode :RF WIFI AT*/
+	   pr_info("FTM TEST MODE,RF AT,WIFI TEST =%ld\n",val); 
+	   the_chip->ftm_test_mode = true;
+	   return size;
+	}else if(val == 100){
+	   pr_info("FTM CHARGER MODE: charge to normal 100 stop mode =%ld\n",val); 
+	   the_chip->low_charge_mode = false;
+	   the_chip->high_charge_mode = false;
+	   debug_feature = 1;
+	   return size;
+	}
+
+	if(val == 55)
+	{
+	   debug_feature = 1;
+	}
+	
+    /*  Add begin for charge temperature test */
+	#ifdef TEMPERATURE_CHARGE_TEST_FEATURE
+	if(val == 19){
+		pr_info("Temperature charge test MODE open!!! =%ld\n",val);
+		the_chip->chg_temp_test_mode= true;
+	}else if(val == 20){
+		pr_info("Temperature charge test MODE close!!! =%ld\n",val);
+		the_chip->chg_temp_test_mode= false;
+	}else if(val == 21){
+		pr_info("Temperature charge test MODE cold!!! =%ld\n",val);
+		the_chip->chg_test_temp = DEFAULT_COLD_TEMP;
+	}else if(val == 22){
+		pr_info("Temperature charge test MODE little_cold!!! =%ld\n",val);
+		the_chip->chg_test_temp = DEFAULT_LITTLE_COLD_TEMP;
+	}else if(val == 23){
+		pr_info("Temperature charge test MODE cool!!! =%ld\n",val);
+		the_chip->chg_test_temp = DEFAULT_COOL_TEMP;
+	}else if(val == 24){
+		pr_info("Temperature charge test MODE normal!!! =%ld\n",val);
+		the_chip->chg_test_temp = DEFAULT_NORMAL_TEMP;
+	}else if(val == 25){
+		pr_info("Temperature charge test MODE warm!!! =%ld\n",val);
+		the_chip->chg_test_temp = DEFAULT_WARM_TEMP;
+	}else if(val == 26){
+		pr_info("Temperature charge test MODE hot!!! =%ld\n",val);
+		the_chip->chg_test_temp = DEFAULT_HOT_TEMP;
+	}
+	#endif
+	
+	return size;
+}
+static DEVICE_ATTR(pm8921_chg, S_IRUGO | S_IWUSR, NULL, pm8921_chg_store);
+#endif
 #endif
 /* OPPO 2012-10-19 chendx Add end */
 
@@ -6588,6 +6739,10 @@ static int __devinit pm8921_charger_probe(struct platform_device *pdev)
 	/*  Add begin for rsense */
 	chip->r_sense = pdata->r_sense;
 	chip->battery_temp = 23;
+	/*Add begin for charge temperature test */
+	#ifdef TEMPERATURE_CHARGE_TEST_FEATURE
+	chip->chg_test_temp = 23;
+	#endif
 	chip->bad_charger_check_time = BAD_STATE_COUNT;
 	chip->battery_voltage = 3500;
 	chip->batt_health = POWER_SUPPLY_HEALTH_GOOD;
@@ -6595,6 +6750,13 @@ static int __devinit pm8921_charger_probe(struct platform_device *pdev)
 	chip->charge_current = 0;
 	chip->charger_status = CHARGER_STATUS_GOOD;
 	chip->battery_status = BATTERY_STATUS_GOOD;
+	/*  Add begin for FTM CHARGE MODE */
+	#ifdef FTM_CHARGE_MODE_FEATURE
+	chip->low_charge_mode = false;
+	chip->high_charge_mode = false;
+	#endif
+	/* Add begin for RF WIFI AT factory test */
+	chip->ftm_test_mode= false;
 
 	chip->soc_charge_counter = 0;
 	chip->ocv_shutdown_counter = 0;
@@ -6604,6 +6766,10 @@ static int __devinit pm8921_charger_probe(struct platform_device *pdev)
 	chip->eoc_vbatt_counter = 0;
 	chip->cv_long_counter = 0;
 	
+	/* Add begin for Temprate charger test */
+	#ifdef TEMPERATURE_CHARGE_TEST_FEATURE
+	chip->chg_temp_test_mode= false;
+	#endif
 	/* for charge done and recharging */
 	chip->recharging_counter = 0;
 	chip->vbatdet_mv = pdata->normal_bat_voltage;
@@ -6709,6 +6875,16 @@ static int __devinit pm8921_charger_probe(struct platform_device *pdev)
 		print_pm8921(DEBUG_INFO,"creat pm8921 chg suspend mode failed\n");
 		device_remove_file(chip->dev, &dev_attr_pm8921_suspend_mode);
 	}
+
+/* Add begin for FTM CHARGE MODE */
+#ifdef FTM_CHARGE_MODE_FEATURE
+	rc = device_create_file(chip->dev, &dev_attr_pm8921_chg);
+	if (rc < 0) {
+		pr_err("%s: creat pm8921 ftm mode file failed ret = %d\n", 
+					__func__, rc);
+		device_remove_file(chip->dev, &dev_attr_pm8921_chg);
+	}
+#endif
 #endif
 /* OPPO 2012-10-19 chendx Add end */
 
@@ -6820,6 +6996,11 @@ static int __devexit pm8921_charger_remove(struct platform_device *pdev)
 
 	/*charge suspend mode */
 	device_remove_file(chip->dev, &dev_attr_pm8921_suspend_mode);	
+
+	/*FTM CHARGE TEST MODE */
+#ifdef FTM_CHARGE_MODE_FEATURE
+	device_remove_file(chip->dev, &dev_attr_pm8921_chg);
+#endif
 #endif /*CONFIG_VENDOR_EDIT*/
 /* OPPO 2012-10-19 chendx Add end */
 
