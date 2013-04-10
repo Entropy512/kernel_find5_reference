@@ -705,7 +705,7 @@ static struct msm_sensor_exp_gain_info_t ov2720_exp_gain_info = {
 };
 
 static int32_t ov2720_write_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
-		uint16_t gain, uint32_t line)
+		uint16_t gain, uint32_t line, int32_t v1, uint16_t v2)
 {
 	uint32_t fl_lines, offset;
 	uint8_t int_time[3];
@@ -729,6 +729,9 @@ static int32_t ov2720_write_exp_gain(struct msm_sensor_ctrl_t *s_ctrl,
 		s_ctrl->sensor_exp_gain_info->global_gain_addr, gain,
 		MSM_CAMERA_I2C_WORD_DATA);
 	s_ctrl->func_tbl->sensor_group_hold_off(s_ctrl);
+
+        if (v1 || v2) { } // oppo workaround
+
 	return 0;
 }
 
