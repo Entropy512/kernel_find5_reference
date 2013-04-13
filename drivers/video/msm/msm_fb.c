@@ -328,7 +328,6 @@ static void msm_fb_set_bl_brightness(struct led_classdev *led_cdev,
 	if(!bl_lvl && value)
 	  bl_lvl = 1;
 #endif
-        down(&mfd->sem);
 	msm_fb_set_backlight(mfd, bl_lvl);
 }
 
