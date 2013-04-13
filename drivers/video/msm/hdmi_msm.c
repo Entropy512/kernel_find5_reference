@@ -22,6 +22,7 @@
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/mutex.h>
+#include <linux/slimport.h>
 #include <mach/msm_hdmi_audio.h>
 #include <mach/clk.h>
 #include <mach/msm_iomap.h>
@@ -76,6 +77,7 @@ static void hdmi_msm_turn_on(void);
 static int hdmi_msm_audio_off(void);
 static int hdmi_msm_read_edid(void);
 static void hdmi_msm_hpd_off(void);
+static boolean hdmi_msm_is_dvi_mode(void);
 
 #ifdef CONFIG_FB_MSM_HDMI_MSM_PANEL_CEC_SUPPORT
 
@@ -810,7 +812,7 @@ static void hdmi_msm_hpd_state_work(struct work_struct *work)
 	}
 
 	hdmi_msm_state->hpd_stable = 1;
-//	DEV_INFO("HDMI HPD: event detected\n");
+	DEV_INFO("HDMI HPD: event detected\n");
 
 	if (!hdmi_msm_state->hpd_cable_chg_detected) {
 		mutex_unlock(&hdmi_msm_state_mutex);
@@ -825,7 +827,7 @@ static void hdmi_msm_hpd_state_work(struct work_struct *work)
 		/* QDSP OFF preceding the HPD event notification */
 		envp[0] = "HDCP_STATE=FAIL";
 		envp[1] = NULL;
-//		DEV_INFO("HDMI HPD: QDSP OFF\n");
+		DEV_INFO("HDMI HPD: QDSP OFF\n");
 		kobject_uevent_env(external_common_state->uevent_kobj,
 				   KOBJ_CHANGE, envp);
 		if (hpd_state) {
@@ -835,8 +837,8 @@ static void hdmi_msm_hpd_state_work(struct work_struct *work)
 			hdmi_msm_state->reauth = FALSE ;
 #endif
 			switch_set_state(&external_common_state->sdev, 1);
-//			DEV_INFO("Hdmi state switched to %d: %s\n",
-//				external_common_state->sdev.state,  __func__);
+			DEV_INFO("Hdmi state switched to %d: %s\n",
+				external_common_state->sdev.state,  __func__);
 
 			DEV_INFO("HDMI HPD: CONNECTED: send ONLINE\n");
 			kobject_uevent(external_common_state->uevent_kobj,
@@ -844,6 +846,14 @@ static void hdmi_msm_hpd_state_work(struct work_struct *work)
 			switch_set_state(&external_common_state->sdev, 1);
 				DEV_INFO("Hdmi state switch to %d: %s\n",
 			external_common_state->sdev.state,  __func__);
+			/* Set HDMI Audio swtich */
+			if (!hdmi_msm_is_dvi_mode()) {
+				switch_set_state(
+					&external_common_state->saudiodev, 1);
+				DEV_INFO("hdmi_audio state switched to %d: %s\n"
+					, external_common_state->saudiodev.state
+					, __func__);
+			}
 #ifndef CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT
 			/* Send Audio for HDMI Compliance Cases*/
 			envp[0] = "HDCP_STATE=PASS";
@@ -853,11 +863,17 @@ static void hdmi_msm_hpd_state_work(struct work_struct *work)
 				KOBJ_CHANGE, envp);
 #endif
 		} else {
-			switch_set_state(&external_common_state->sdev, 0);
-//			DEV_INFO("Hdmi state switched to %d: %s\n",
-//				external_common_state->sdev.state,  __func__);
+			/* Set HDMI Audio swtich */
+			switch_set_state(&external_common_state->saudiodev, 0);
+			DEV_INFO("hdmi_audio state switched to %d: %s\n",
+				external_common_state->saudiodev.state,
+				__func__);
 
-//			DEV_INFO("HDMI HPD: DISCONNECTED: send OFFLINE\n");
+			switch_set_state(&external_common_state->sdev, 0);
+			DEV_INFO("Hdmi state switched to %d: %s\n",
+				external_common_state->sdev.state,  __func__);
+
+			DEV_INFO("HDMI HPD: DISCONNECTED: send OFFLINE\n");
 			kobject_uevent(external_common_state->uevent_kobj,
 				KOBJ_OFFLINE);
 		}
@@ -1097,9 +1113,14 @@ static irqreturn_t hdmi_msm_isr(int irq, void *dev_id)
 		DEV_INFO("HDCP: AUTH_FAIL_INT received, LINK0_STATUS=0x%08x\n",
 			HDMI_INP_ND(0x011C));
 		if (hdmi_msm_state->full_auth_done) {
+			/* Set HDMI Audio swtich */
+			switch_set_state(&external_common_state->saudiodev, 0);
+			DEV_INFO("hdmi_audio state switched to %d: %s\n",
+				external_common_state->saudiodev.state,
+				__func__);
 			switch_set_state(&external_common_state->sdev, 0);
-		//	DEV_INFO("Hdmi state switched to %d: %s\n",
-		//		external_common_state->sdev.state,  __func__);
+			DEV_INFO("Hdmi state switched to %d: %s\n",
+				external_common_state->sdev.state,  __func__);
 
 			envp[0] = "HDCP_STATE=FAIL";
 			envp[1] = NULL;
@@ -2151,6 +2172,10 @@ static int hdmi_msm_read_edid(void)
 	}
 
 	external_common_state->read_edid_block = hdmi_msm_read_edid_block;
+#ifdef CONFIG_SLIMPORT_ANX7808
+	external_common_state->read_edid_block = slimport_read_edid_block;
+#endif
+
 	status = hdmi_common_read_edid();
 	if (!status)
 		DEV_DBG("EDID: successfully read\n");
@@ -3048,11 +3073,15 @@ static void hdmi_msm_hdcp_enable(void)
 		envp[1] = NULL;
 		kobject_uevent_env(external_common_state->uevent_kobj,
 		    KOBJ_CHANGE, envp);
+		/* Set HDMI Audio swtich */
+		switch_set_state(&external_common_state->saudiodev, 1);
+		DEV_INFO("hdmi_audio state switched to %d: %s\n",
+			external_common_state->saudiodev.state,  __func__);
 	}
 
 	switch_set_state(&external_common_state->sdev, 1);
-//	DEV_INFO("Hdmi state switched to %d: %s\n",
-//		external_common_state->sdev.state, __func__);
+	DEV_INFO("Hdmi state switched to %d: %s\n",
+		external_common_state->sdev.state, __func__);
 	return;
 
 error:
@@ -3072,9 +3101,13 @@ error:
 			queue_work(hdmi_work_queue,
 			    &hdmi_msm_state->hdcp_reauth_work);
 	}
+	/* Set HDMI Audio swtich */
+	switch_set_state(&external_common_state->saudiodev, 0);
+	DEV_INFO("hdmi_audio state switched to %d: %s\n",
+		external_common_state->saudiodev.state,  __func__);
 	switch_set_state(&external_common_state->sdev, 0);
-//	DEV_INFO("Hdmi state switched to %d: %s\n",
-//		external_common_state->sdev.state, __func__);
+	DEV_INFO("Hdmi state switched to %d: %s\n",
+		external_common_state->sdev.state, __func__);
 }
 #endif /* CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT */
 
@@ -3986,6 +4019,19 @@ static void hdmi_msm_spd_infoframe_packetsetup(void)
 	HDMI_OUTP(0x00A4, packet_header);
 	check_sum += IFRAME_CHECKSUM_32(packet_header);
 
+	/* Vendor Name (7bit ASCII code) */
+	/* 0x00A8 GENERIC1_0
+	 *   BYTE0           7:0  CheckSum
+	 *   BYTE1          15:8  VENDOR_NAME[0]
+	 *   BYTE2         23:16  VENDOR_NAME[1]
+	 *   BYTE3         31:24  VENDOR_NAME[2] */
+	packet_payload = ((vendor_name[0] & 0x7f) << 8)
+		| ((vendor_name[1] & 0x7f) << 16)
+		| ((vendor_name[2] & 0x7f) << 24);
+	check_sum += IFRAME_CHECKSUM_32(packet_payload);
+	packet_payload |= ((0x100 - (0xff & check_sum)) & 0xff);
+	HDMI_OUTP(0x00A8, packet_payload);
+
 	/* 0x00AC GENERIC1_1
 	 *   BYTE4           7:0  VENDOR_NAME[3]
 	 *   BYTE5          15:8  VENDOR_NAME[4]
@@ -4066,19 +4112,6 @@ static void hdmi_msm_spd_infoframe_packetsetup(void)
 	packet_payload = (product_description[15] & 0x7f) | 0x00 << 8;
 	HDMI_OUTP(0x00C0, packet_payload);
 	check_sum += IFRAME_CHECKSUM_32(packet_payload);
-
-	/* Vendor Name (7bit ASCII code) */
-	/* 0x00A8 GENERIC1_0
-	 *   BYTE0           7:0  CheckSum
-	 *   BYTE1          15:8  VENDOR_NAME[0]
-	 *   BYTE2         23:16  VENDOR_NAME[1]
-	 *   BYTE3         31:24  VENDOR_NAME[2] */
-	packet_payload = ((vendor_name[0] & 0x7f) << 8)
-		| ((vendor_name[1] & 0x7f) << 16)
-		| ((vendor_name[2] & 0x7f) << 24);
-	check_sum += IFRAME_CHECKSUM_32(packet_payload);
-	packet_payload |= ((0x100 - (0xff & check_sum)) & 0xff);
-	HDMI_OUTP(0x00A8, packet_payload);
 
 	/* GENERIC1_LINE | GENERIC1_CONT | GENERIC1_SEND
 	 * Setup HDMI TX generic packet control
@@ -4389,8 +4422,12 @@ void mhl_connect_api(boolean on)
 	hdmi_msm_state->hpd_cable_chg_detected = FALSE;
 	/* QDSP OFF preceding the HPD event notification */
 	switch_set_state(&external_common_state->sdev, 0);
-//	DEV_INFO("Hdmi state switched to %d: %s\n",
-//		 external_common_state->sdev.state,  __func__);
+	DEV_INFO("Hdmi state switched to %d: %s\n",
+		 external_common_state->sdev.state,  __func__);
+	/* Set HDMI Audio swtich */
+	switch_set_state(&external_common_state->saudiodev, 0);
+	DEV_INFO("hdmi_auido state switched to %d: %s\n",
+		external_common_state->saudiodev.state,  __func__);
 	if (on) {
 		hdmi_msm_read_edid();
 		if (hdmi_msm_has_hdcp())
@@ -4410,16 +4447,28 @@ void mhl_connect_api(boolean on)
 			kobject_uevent_env(external_common_state->uevent_kobj,
 					   KOBJ_CHANGE, envp);
 			switch_set_state(&external_common_state->sdev, 1);
-//			DEV_INFO("Hdmi state switched to %d: %s\n",
-//				 external_common_state->sdev.state, __func__);
+			DEV_INFO("Hdmi state switched to %d: %s\n",
+				 external_common_state->sdev.state, __func__);
+			/* Set HDMI Audio swtich */
+			if (!hdmi_msm_is_dvi_mode()) {
+				switch_set_state(
+					&external_common_state->saudiodev, 1);
+				DEV_INFO("hdmi_audio state switched to %d: %s\n"
+					, external_common_state->saudiodev.state
+					, __func__);
+			}
 		}
 	} else {
-	//	DEV_INFO("HDMI HPD: DISCONNECTED: send OFFLINE\n");
+		DEV_INFO("HDMI HPD: DISCONNECTED: send OFFLINE\n");
 		kobject_uevent(external_common_state->uevent_kobj,
 			       KOBJ_OFFLINE);
+		/* Set HDMI Audio swtich */
+		switch_set_state(&external_common_state->saudiodev, 0);
+		DEV_INFO("hdmi_audio state switched to %d: %s\n",
+			external_common_state->saudiodev.state,  __func__);
 		switch_set_state(&external_common_state->sdev, 0);
-//		DEV_INFO("Hdmi state switched to %d: %s\n",
-//			 external_common_state->sdev.state,  __func__);
+		DEV_INFO("Hdmi state switched to %d: %s\n",
+			 external_common_state->sdev.state,  __func__);
 	}
 }
 EXPORT_SYMBOL(mhl_connect_api);
@@ -4629,6 +4678,11 @@ static int __devinit hdmi_msm_probe(struct platform_device *pdev)
 	if (switch_dev_register(&external_common_state->sdev) < 0)
 		DEV_ERR("Hdmi switch registration failed\n");
 
+	/* Initialize the hdmi audio node and register with switch driver */
+	external_common_state->saudiodev.name = "hdmi_audio";
+	if (switch_dev_register(&external_common_state->saudiodev) < 0)
+		DEV_ERR("hdmi_audio switch registration failed\n");
+
 	return 0;
 
 error:
@@ -4664,6 +4718,9 @@ static int __devexit hdmi_msm_remove(struct platform_device *pdev)
 
 	/* Unregister hdmi node from switch driver */
 	switch_dev_unregister(&external_common_state->sdev);
+
+	/* Unregister hdmi node from switch driver */
+	switch_dev_unregister(&external_common_state->saudiodev);
 
 	hdmi_msm_hpd_off();
 	free_irq(hdmi_msm_state->irq, NULL);
@@ -4704,6 +4761,8 @@ static int hdmi_msm_hpd_feature(int on)
 		rc = hdmi_msm_hpd_on(true);
 	} else {
 		hdmi_msm_hpd_off();
+		/* Set HDMI audio switch node to 0 when HPD is off */
+		switch_set_state(&external_common_state->saudiodev, 0);
 		/* Set HDMI switch node to 0 on HPD feature disable */
 		switch_set_state(&external_common_state->sdev, 0);
 	}
