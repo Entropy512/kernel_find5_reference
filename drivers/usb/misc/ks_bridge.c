@@ -401,7 +401,7 @@ static const struct file_operations ksb_fops = {
 static struct miscdevice ksb_fboot_dev[] = {
 	{
 		.minor = MISC_DYNAMIC_MINOR,
-		.name = "ks_hsic_bridge",
+		.name = "ks_bridge",
 		.fops = &ksb_fops,
 	},
 	{
